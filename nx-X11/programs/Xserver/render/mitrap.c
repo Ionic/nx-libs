@@ -34,7 +34,7 @@
 #include "mipict.h"
 
 PicturePtr
-miCreateAlphaPicture (ScreenPtr	    pScreen, 
+miCreateAlphaPicture (ScreenPtr	    pScreen,
 		      PicturePtr    pDst,
 		      PictFormatPtr pPictFormat,
 		      CARD16	    width,
@@ -59,7 +59,7 @@ miCreateAlphaPicture (ScreenPtr	    pScreen,
 	    return 0;
     }
 
-    pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height, 
+    pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height,
 					pPictFormat->depth, 0);
     if (!pPixmap)
 	return 0;
@@ -147,7 +147,7 @@ miTrapezoids (CARD8	    op,
     {
 	for (; ntrap; ntrap--, traps++)
 	    (*ps->RasterizeTrapezoid) (pDst, traps, 0, 0);
-    } 
+    }
     else if (maskFormat)
     {
 	PicturePtr	pPicture;
@@ -167,7 +167,7 @@ miTrapezoids (CARD8	    op,
 	if (!pPicture)
 	    return;
 	for (; ntrap; ntrap--, traps++)
-	    (*ps->RasterizeTrapezoid) (pPicture, traps, 
+	    (*ps->RasterizeTrapezoid) (pPicture, traps,
 				       -bounds.x1, -bounds.y1);
 	xRel = bounds.x1 + xSrc - xDst;
 	yRel = bounds.y1 + ySrc - yDst;

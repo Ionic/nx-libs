@@ -68,7 +68,7 @@ miDestroyPictureClip (PicturePtr pPicture)
     }
     pPicture->clientClip = NULL;
     pPicture->clientClipType = CT_NONE;
-}    
+}
 
 int
 miChangePictureClip (PicturePtr    pPicture,
@@ -80,7 +80,7 @@ miChangePictureClip (PicturePtr    pPicture,
     PictureScreenPtr    ps = GetPictureScreen(pScreen);
     void *		clientClip;
     int			clientClipType;
-    
+
     switch (type) {
     case CT_PIXMAP:
 	/* convert the pixmap to a region */
@@ -227,12 +227,12 @@ miValidatePicture (PicturePtr pPicture,
 	    {
 		if(pDrawable->x || pDrawable->y) {
 		    RegionTranslate(pPicture->clientClip,
-				     pDrawable->x + pPicture->clipOrigin.x, 
+				     pDrawable->x + pPicture->clipOrigin.x,
 				     pDrawable->y + pPicture->clipOrigin.y);
 		    RegionIntersect(pPicture->pCompositeClip,
 				     pPicture->pCompositeClip, pPicture->clientClip);
 		    RegionTranslate(pPicture->clientClip,
-				     -(pDrawable->x + pPicture->clipOrigin.x), 
+				     -(pDrawable->x + pPicture->clipOrigin.x),
 				     -(pDrawable->y + pPicture->clipOrigin.y));
 		} else {
 		    RegionTranslate(pPicture->pCompositeClip,
@@ -305,7 +305,7 @@ miClipPictureReg (RegionPtr	pRegion,
     }
     return RegionNotEmpty(pRegion);
 }
-		  
+		
 static __inline Bool
 miClipPictureSrc (RegionPtr	pRegion,
 		  PicturePtr	pPicture,
@@ -354,7 +354,7 @@ miCompositeSourceValidate (PicturePtr	pPicture,
         return;
 
     pScreen = pDrawable->pScreen;
-    
+
     if (pScreen->SourceValidate)
     {
         x -= pPicture->pDrawable->x;
@@ -550,7 +550,7 @@ miIsSolidAlpha (PicturePtr pSrc)
         return FALSE;
 
     pScreen = pSrc->pDrawable->pScreen;
-    
+
     /* Alpha-only */
     if (PICT_FORMAT_TYPE (pSrc->format) != PICT_TYPE_A)
 	return FALSE;
@@ -581,7 +581,7 @@ miRenderPixelToColor (PictFormatPtr format,
 {
     CARD32	    r, g, b, a;
     miIndexedPtr    pIndexed;
-    
+
     switch (format->type) {
     case PictTypeDirect:
 	r = (pixel >> format->direct.red) & format->direct.redMask;
@@ -611,7 +611,7 @@ Bool
 miPictureInit (ScreenPtr pScreen, PictFormatPtr formats, int nformats)
 {
     PictureScreenPtr    ps;
-    
+
     if (!PictureInit (pScreen, formats, nformats))
 	return FALSE;
     ps = GetPictureScreen(pScreen);
@@ -635,7 +635,7 @@ miPictureInit (ScreenPtr pScreen, PictFormatPtr formats, int nformats)
     ps->Triangles	= miTriangles;
     ps->TriStrip	= miTriStrip;
     ps->TriFan		= miTriFan;
-    
+
     ps->RasterizeTrapezoid = 0;			/* requires DDX support */
     ps->AddTraps	= 0;			/* requires DDX support */
     ps->AddTriangles	= 0;			/* requires DDX support */

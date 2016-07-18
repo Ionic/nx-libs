@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL SuSE
  * BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN 
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  * Author:  Keith Packard, SuSE, Inc.
@@ -175,7 +175,7 @@ FindGlyphRef (GlyphHashPtr hash, CARD32 signature, Bool match, GlyphPtr compare)
 		break;
 	}
 	else if (s == signature &&
-		 (!match || 
+		 (!match ||
 		  memcmp (&compare->info, &glyph->info, compare->size) == 0))
 	{
 	    break;
@@ -289,7 +289,7 @@ AddGlyph (GlyphSetPtr glyphSet, GlyphPtr glyph, Glyph id)
 	gr->signature = hash;
 	globalGlyphs[glyphSet->fdepth].tableEntries++;
     }
-    
+
     /* Insert/replace glyphset value */
     gr = FindGlyphRef (&glyphSet->hash, id, FALSE, 0);
     ++glyph->refcnt;
@@ -340,7 +340,7 @@ AllocateGlyph (xGlyphInfo *gi, int fdepth)
     int		size;
     GlyphPtr	glyph;
     size_t	     padded_width;
-    
+
     padded_width = PixmapBytePad (gi->width, glyphDepths[fdepth]);
     if (gi->height && padded_width > (UINT32_MAX - sizeof(GlyphRec))/gi->height)
 	return 0;
@@ -353,7 +353,7 @@ AllocateGlyph (xGlyphInfo *gi, int fdepth)
     glyph->info = *gi;
     return glyph;
 }
-    
+
 Bool
 AllocateGlyphHash (GlyphHashPtr hash, GlyphHashSetPtr hashSet)
 {
@@ -418,13 +418,13 @@ ResizeGlyphSet (GlyphSetPtr glyphSet, CARD32 change)
     return (ResizeGlyphHash (&glyphSet->hash, change, FALSE) &&
 	    ResizeGlyphHash (&globalGlyphs[glyphSet->fdepth], change, TRUE));
 }
-			    
+			
 GlyphSetPtr
 AllocateGlyphSet (int fdepth, PictFormatPtr format)
 {
     GlyphSetPtr	glyphSet;
     int size;
-    
+
     if (!globalGlyphs[fdepth].hashSet)
     {
 	if (!AllocateGlyphHash (&globalGlyphs[fdepth], &glyphHashSets[0]))
@@ -457,13 +457,13 @@ FreeGlyphSet (void	*value,
 	      XID       gid)
 {
     GlyphSetPtr	glyphSet = (GlyphSetPtr) value;
-    
+
     if (--glyphSet->refcnt == 0)
     {
 	CARD32	    i, tableSize = glyphSet->hash.hashSet->size;
 	GlyphRefPtr table = glyphSet->hash.table;
 	GlyphPtr    glyph;
-    
+
 	for (i = 0; i < tableSize; i++)
 	{
 	    glyph = table[i].glyph;

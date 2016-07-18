@@ -50,7 +50,7 @@ miBuildRenderColormap (ColormapPtr  pColormap, Pixel *pixels, int *nump)
     int		policy;
     int		cube, gray;
     int		i, n;
-    
+
     if (pColormap->mid != pColormap->pScreen->defColormap)
     {
 	policy = PictureCmapPolicyAll;
@@ -92,8 +92,8 @@ miBuildRenderColormap (ColormapPtr  pColormap, Pixel *pixels, int *nump)
 	if (needed <= pColormap->freeRed)
 	    break;
 	policy--;
-    } 
-    
+    }
+
     /*
      * Compute size of cube and gray ramps
      */
@@ -140,7 +140,7 @@ miBuildRenderColormap (ColormapPtr  pColormap, Pixel *pixels, int *nump)
 	gray = 2;
 	break;
     }
-    
+
     memset (used, '\0', pColormap->pVisual->ColormapEntries * sizeof (Bool));
     for (r = 0; r < cube; r++)
 	for (g = 0; g < cube; g++)
@@ -149,7 +149,7 @@ miBuildRenderColormap (ColormapPtr  pColormap, Pixel *pixels, int *nump)
 		red = (r * 65535 + (cube-1)/2) / (cube - 1);
 		green = (g * 65535 + (cube-1)/2) / (cube - 1);
 		blue = (b * 65535 + (cube-1)/2) / (cube - 1);
-		if (AllocColor (pColormap, &red, &green, 
+		if (AllocColor (pColormap, &red, &green,
 				&blue, &pixel, 0) != Success)
 		    return FALSE;
 		used[pixel] = TRUE;
@@ -167,7 +167,7 @@ miBuildRenderColormap (ColormapPtr  pColormap, Pixel *pixels, int *nump)
 	    pixels[n++] = i;
 
     *nump = n;
-    
+
     return TRUE;
 }
 
@@ -210,7 +210,7 @@ FindBestGray (miIndexedPtr pIndexed, Pixel *pixels, int num, int gray)
     int	    dist;
     int	    dr;
     int	    r;
-    
+
     while (num--)
     {
 	Pixel   pixel = *pixels++;
@@ -244,7 +244,7 @@ miInitIndexed (ScreenPtr	pScreen,
 
     if (pVisual->ColormapEntries > MI_MAX_INDEXED)
 	return FALSE;
-    
+
     if (pVisual->class & DynamicClass)
     {
 	if (!miBuildRenderColormap (pColormap, pixels, &num))
@@ -256,11 +256,11 @@ miInitIndexed (ScreenPtr	pScreen,
 	for (p = 0; p < num; p++)
 	    pixels[p] = p;
     }
-    
+
     pIndexed = malloc (sizeof (miIndexedRec));
     if (!pIndexed)
 	return FALSE;
-    
+
     pFormat->index.nvalues = num;
     pFormat->index.pValues = malloc (num * sizeof (xIndexValue));
     if (!pFormat->index.pValues)
@@ -268,8 +268,8 @@ miInitIndexed (ScreenPtr	pScreen,
 	free (pIndexed);
 	return FALSE;
     }
-    
-    
+
+
     /*
      * Build mapping from pixel value to ARGB
      */

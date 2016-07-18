@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL SuSE
  * BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN 
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  * Author:  Keith Packard, SuSE, Inc.
@@ -275,7 +275,7 @@ PictureCreateDefaultFormats (ScreenPtr pScreen, int *nformatp)
 		type = PICT_TYPE_ARGB;
 	    }
 	    else if (pVisual->offsetRed == 0 &&
-		     pVisual->offsetGreen == r && 
+		     pVisual->offsetGreen == r &&
 		     pVisual->offsetBlue == r + g)
 	    {
 		type = PICT_TYPE_ABGR;
@@ -325,7 +325,7 @@ PictureCreateDefaultFormats (ScreenPtr pScreen, int *nformatp)
 				      PICT_x1b5g5r5, pDepth->depth);
 	    }
 	    /* depth 16 formats */
-	    if (pDepth->depth >= 16) 
+	    if (pDepth->depth >= 16)
 	    {
 		nformats = addFormat (formats, nformats,
 				      PICT_a1r5g5b5, pDepth->depth);
@@ -361,7 +361,7 @@ PictureCreateDefaultFormats (ScreenPtr pScreen, int *nformatp)
 	    break;
 	}
     }
-    
+
 
     pFormats = (PictFormatPtr) malloc (nformats * sizeof (PictFormatRec));
     if (!pFormats)
@@ -376,40 +376,40 @@ PictureCreateDefaultFormats (ScreenPtr pScreen, int *nformatp)
 	switch (PICT_FORMAT_TYPE(format)) {
 	case PICT_TYPE_ARGB:
 	    pFormats[f].type = PictTypeDirect;
-	    
+	
 	    pFormats[f].direct.alphaMask = Mask(PICT_FORMAT_A(format));
 	    if (pFormats[f].direct.alphaMask)
 		pFormats[f].direct.alpha = (PICT_FORMAT_R(format) +
 					    PICT_FORMAT_G(format) +
 					    PICT_FORMAT_B(format));
-	    
+	
 	    pFormats[f].direct.redMask = Mask(PICT_FORMAT_R(format));
-	    pFormats[f].direct.red = (PICT_FORMAT_G(format) + 
+	    pFormats[f].direct.red = (PICT_FORMAT_G(format) +
 				      PICT_FORMAT_B(format));
-	    
+	
 	    pFormats[f].direct.greenMask = Mask(PICT_FORMAT_G(format));
 	    pFormats[f].direct.green = PICT_FORMAT_B(format);
-	    
+	
 	    pFormats[f].direct.blueMask = Mask(PICT_FORMAT_B(format));
 	    pFormats[f].direct.blue = 0;
 	    break;
 
 	case PICT_TYPE_ABGR:
 	    pFormats[f].type = PictTypeDirect;
-	    
+	
 	    pFormats[f].direct.alphaMask = Mask(PICT_FORMAT_A(format));
 	    if (pFormats[f].direct.alphaMask)
 		pFormats[f].direct.alpha = (PICT_FORMAT_B(format) +
 					    PICT_FORMAT_G(format) +
 					    PICT_FORMAT_R(format));
-	    
+	
 	    pFormats[f].direct.blueMask = Mask(PICT_FORMAT_B(format));
-	    pFormats[f].direct.blue = (PICT_FORMAT_G(format) + 
+	    pFormats[f].direct.blue = (PICT_FORMAT_G(format) +
 				       PICT_FORMAT_R(format));
-	    
+	
 	    pFormats[f].direct.greenMask = Mask(PICT_FORMAT_G(format));
 	    pFormats[f].direct.green = PICT_FORMAT_R(format);
-	    
+	
 	    pFormats[f].direct.redMask = Mask(PICT_FORMAT_R(format));
 	    pFormats[f].direct.red = 0;
 	    break;
@@ -422,7 +422,7 @@ PictureCreateDefaultFormats (ScreenPtr pScreen, int *nformatp)
 
 	    /* remaining fields already set to zero */
 	    break;
-	    
+	
 	case PICT_TYPE_COLOR:
 	case PICT_TYPE_GRAY:
 	    pFormats[f].type = PictTypeIndexed;
@@ -513,7 +513,7 @@ PictureSetSubpixelOrder (ScreenPtr pScreen, int subpixel)
 	return FALSE;
     ps->subpixel = subpixel;
     return TRUE;
-    
+
 }
 
 int
@@ -525,7 +525,7 @@ PictureGetSubpixelOrder (ScreenPtr pScreen)
 	return SubPixelUnknown;
     return ps->subpixel;
 }
-    
+
 PictFormatPtr
 PictureMatchVisual (ScreenPtr pScreen, int depth, VisualPtr pVisual)
 {
@@ -563,11 +563,11 @@ PictureMatchVisual (ScreenPtr pScreen, int depth, VisualPtr pVisual)
 	    }
 	    else
 	    {
-		if (format->direct.redMask << format->direct.red == 
+		if (format->direct.redMask << format->direct.red ==
 		    pVisual->redMask &&
-		    format->direct.greenMask << format->direct.green == 
+		    format->direct.greenMask << format->direct.green ==
 		    pVisual->greenMask &&
-		    format->direct.blueMask << format->direct.blue == 
+		    format->direct.blueMask << format->direct.blue ==
 		    pVisual->blueMask)
 		{
 		    return format;
@@ -622,7 +622,7 @@ PictureInit (ScreenPtr pScreen, PictFormatPtr formats, int nformats)
     PictureScreenPtr	ps;
     int			n;
     CARD32		type, a, r, g, b;
-    
+
     if (PictureGeneration != serverGeneration)
     {
 	PictureType = CreateNewResourceType (FreePicture);
@@ -647,7 +647,7 @@ PictureInit (ScreenPtr pScreen, PictFormatPtr formats, int nformats)
     }
     if (!AllocateWindowPrivate (pScreen, PictureWindowPrivateIndex, 0))
 	return FALSE;
-    
+
     if (!formats)
     {
 	formats = PictureCreateDefaultFormats (pScreen, &nformats);
@@ -705,11 +705,11 @@ PictureInit (ScreenPtr pScreen, PictFormatPtr formats, int nformats)
     ps->totalPictureSize = sizeof (PictureRec);
     ps->PicturePrivateSizes = 0;
     ps->PicturePrivateLen = 0;
-    
+
     ps->formats = formats;
     ps->fallback = formats;
     ps->nformats = nformats;
-    
+
     ps->filters = 0;
     ps->nfilters = 0;
     ps->filterAliases = 0;
@@ -837,7 +837,7 @@ CreatePicture (Picture		pid,
     }
 
     SetPictureToDefaults (pPicture);
-    
+
     if (vmask)
 	*error = ChangePicture (pPicture, vmask, vlist, 0, client);
     else
@@ -1167,7 +1167,7 @@ ChangePicture (PicturePtr	pPicture,
     BITS32		index2;
     int			error = 0;
     BITS32		maskQ;
-    
+
     pPicture->serialNumber |= GC_CHANGE_SERIAL_BIT;
     maskQ = vmask;
     while (vmask && !error)
@@ -1206,8 +1206,8 @@ ChangePicture (PicturePtr	pPicture,
 		    else
 		    {
 			pAlpha = (PicturePtr) SecurityLookupIDByType(client,
-								     pid, 
-								     PictureType, 
+								     pid,
+								     PictureType,
 								     DixWriteAccess|DixReadAccess);
 			if (!pAlpha)
 			{
@@ -1267,7 +1267,7 @@ ChangePicture (PicturePtr	pPicture,
 		    {
 			clipType = CT_PIXMAP;
 			pPixmap = (PixmapPtr)SecurityLookupIDByType(client,
-								    pid, 
+								    pid,
 								    RT_PIXMAP,
 								    DixReadAccess);
 			if (!pPixmap)
@@ -1401,7 +1401,7 @@ SetPictureClipRects (PicturePtr	pPicture,
 				 nRect, rects, CT_UNSORTED);
     if (!clientClip)
 	return BadAlloc;
-    result =(*ps->ChangePictureClip) (pPicture, CT_REGION, 
+    result =(*ps->ChangePictureClip) (pPicture, CT_REGION,
 				      (void *) clientClip, 0);
     if (result == Success)
     {
@@ -1470,7 +1470,7 @@ SetPictureTransform (PicturePtr	    pPicture,
 
     if (transform && memcmp (transform, &identity, sizeof (PictTransform)) == 0)
 	transform = 0;
-    
+
     if (transform)
     {
 	if (!pPicture->transform)
@@ -1678,7 +1678,7 @@ ReduceCompositeOp (CARD8 op, PicturePtr pSrc, PicturePtr pMask, PicturePtr pDst)
                    pDst->alphaMap == NULL;
 
     /* TODO, maybe: Conjoint and Disjoint op reductions? */
- 
+
     /* Deal with simplifications where the source alpha is always 1. */
     if (no_src_alpha)
     {
@@ -1766,7 +1766,7 @@ CompositePicture (CARD8		op,
 		  CARD16	height)
 {
     PictureScreenPtr	ps = GetPictureScreen(pDst->pDrawable->pScreen);
-    
+
     ValidatePicture (pSrc);
     if (pMask)
 	ValidatePicture (pMask);
@@ -1796,7 +1796,7 @@ CompositeRects(CARD8 op,
                xRenderColor * color, int nRect, xRectangle *rects)
 {
     PictureScreenPtr	ps = GetPictureScreen(pDst->pDrawable->pScreen);
-    
+
     ValidatePicture (pDst);
     (*ps->CompositeRects) (op, pDst, color, nRect, rects);
 }
@@ -1812,7 +1812,7 @@ CompositeTrapezoids (CARD8	    op,
 		     xTrapezoid	    *traps)
 {
     PictureScreenPtr	ps = GetPictureScreen(pDst->pDrawable->pScreen);
-    
+
     ValidatePicture (pSrc);
     ValidatePicture (pDst);
     (*ps->Trapezoids) (op, pSrc, pDst, maskFormat, xSrc, ySrc, ntrap, traps);
@@ -1829,7 +1829,7 @@ CompositeTriangles (CARD8	    op,
 		    xTriangle	    *triangles)
 {
     PictureScreenPtr	ps = GetPictureScreen(pDst->pDrawable->pScreen);
-    
+
     ValidatePicture (pSrc);
     ValidatePicture (pDst);
     (*ps->Triangles) (op, pSrc, pDst, maskFormat, xSrc, ySrc, ntriangles, triangles);
@@ -1846,7 +1846,7 @@ CompositeTriStrip (CARD8	    op,
 		   xPointFixed	    *points)
 {
     PictureScreenPtr	ps = GetPictureScreen(pDst->pDrawable->pScreen);
-    
+
     ValidatePicture (pSrc);
     ValidatePicture (pDst);
     (*ps->TriStrip) (op, pSrc, pDst, maskFormat, xSrc, ySrc, npoints, points);
@@ -1863,7 +1863,7 @@ CompositeTriFan (CARD8		op,
 		 xPointFixed	*points)
 {
     PictureScreenPtr	ps = GetPictureScreen(pDst->pDrawable->pScreen);
-    
+
     ValidatePicture (pSrc);
     ValidatePicture (pDst);
     (*ps->TriFan) (op, pSrc, pDst, maskFormat, xSrc, ySrc, npoints, points);
@@ -1877,7 +1877,7 @@ AddTraps (PicturePtr	pPicture,
 	  xTrap		*traps)
 {
     PictureScreenPtr	ps = GetPictureScreen(pPicture->pDrawable->pScreen);
-    
+
     ValidatePicture (pPicture);
     (*ps->AddTraps) (pPicture, xOff, yOff, ntrap, traps);
 }

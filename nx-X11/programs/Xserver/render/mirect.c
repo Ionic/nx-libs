@@ -101,7 +101,7 @@ miCompositeRects (CARD8		op,
 		  xRectangle    *rects)
 {
     ScreenPtr		pScreen = pDst->pDrawable->pScreen;
-    
+
     if (color->alpha == 0xffff)
     {
 	if (op == PictOpOver)
@@ -109,7 +109,7 @@ miCompositeRects (CARD8		op,
     }
     if (op == PictOpClear)
 	color->red = color->green = color->blue = color->alpha = 0;
-    
+
     if (op == PictOpSrc || op == PictOpClear)
     {
 	miColorRects (pDst, pDst, color, nRect, rects, 0, 0);
@@ -159,13 +159,13 @@ miCompositeRects (CARD8		op,
 	tmpval[0] = xTrue;
 	pSrc = CreatePicture (0, &pPixmap->drawable, rgbaFormat,
 			      CPRepeat, tmpval, 0, &error);
-			      
+			
 	if (!pSrc)
 	    goto bail4;
 
 	while (nRect--)
 	{
-	    CompositePicture (op, pSrc, 0, pDst, 0, 0, 0, 0, 
+	    CompositePicture (op, pSrc, 0, pDst, 0, 0, 0, 0,
 			      rects->x,
 			      rects->y,
 			      rects->width,

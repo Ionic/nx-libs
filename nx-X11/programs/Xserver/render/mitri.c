@@ -78,7 +78,7 @@ miTriangles (CARD8	    op,
 {
     ScreenPtr		pScreen = pDst->pDrawable->pScreen;
     PictureScreenPtr    ps = GetPictureScreen(pScreen);
-    
+
     /*
      * Check for solid alpha add
      */
@@ -139,7 +139,7 @@ miTriStrip (CARD8	    op,
     PictureScreenPtr    ps = GetPictureScreen(pScreen);
     xTriangle		*tris, *tri;
     int			ntri;
-    
+
     if (npoint < 3)
 	return;
     ntri = npoint - 2;
@@ -171,7 +171,7 @@ miTriFan (CARD8		op,
     xTriangle		*tris, *tri;
     xPointFixed		*first;
     int			ntri;
-    
+
     if (npoint < 3)
 	return;
     ntri = npoint - 2;

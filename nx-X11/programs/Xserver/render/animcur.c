@@ -115,7 +115,7 @@ AnimCurCloseScreen (ScreenPtr pScreen)
     Bool                ret;
 
     Unwrap(as, pScreen, CloseScreen);
-    
+
     Unwrap(as, pScreen, BlockHandler);
 
     Unwrap(as, pScreen, CursorLimits);
@@ -132,7 +132,7 @@ AnimCurCloseScreen (ScreenPtr pScreen)
     return ret;
 }
 
-static void 
+static void
 AnimCurCursorLimits (ScreenPtr pScreen,
 		     CursorPtr pCursor,
 		     BoxPtr pHotBox,
@@ -181,7 +181,7 @@ AnimCurScreenBlockHandler (int screenNum,
 
 	    /*
 	     * Not a simple Unwrap/Wrap as this
-	     * isn't called along the DisplayCursor 
+	     * isn't called along the DisplayCursor
 	     * wrapper chain.
 	     */
 	    DisplayCursor = pScreen->DisplayCursor;
@@ -244,7 +244,7 @@ AnimCurSetCursorPosition (ScreenPtr pScreen,
 {
     AnimCurScreenPtr    as = GetAnimCurScreen(pScreen);
     Bool		ret;
-    
+
     Unwrap (as, pScreen, SetCursorPosition);
     if (animCurState.pCursor)
 	animCurState.pScreen = pScreen;
@@ -253,13 +253,13 @@ AnimCurSetCursorPosition (ScreenPtr pScreen,
     return ret;
 }
 
-static Bool 
+static Bool
 AnimCurRealizeCursor (ScreenPtr pScreen,
 		      CursorPtr pCursor)
 {
     AnimCurScreenPtr    as = GetAnimCurScreen(pScreen);
     Bool		ret;
-    
+
     Unwrap (as, pScreen, RealizeCursor);
     if (IsAnimCur(pCursor))
 	ret = TRUE;
@@ -269,13 +269,13 @@ AnimCurRealizeCursor (ScreenPtr pScreen,
     return ret;
 }
 
-static Bool 
+static Bool
 AnimCurUnrealizeCursor (ScreenPtr pScreen,
 			CursorPtr pCursor)
 {
     AnimCurScreenPtr    as = GetAnimCurScreen(pScreen);
     Bool		ret;
-    
+
     Unwrap (as, pScreen, UnrealizeCursor);
     if (IsAnimCur(pCursor))
     {
@@ -299,7 +299,7 @@ AnimCurRecolorCursor (ScreenPtr pScreen,
 		      Bool displayed)
 {
     AnimCurScreenPtr    as = GetAnimCurScreen(pScreen);
-    
+
     Unwrap (as, pScreen, RecolorCursor);
     if (IsAnimCur(pCursor))
     {
@@ -308,7 +308,7 @@ AnimCurRecolorCursor (ScreenPtr pScreen,
 
         for (i = 0; i < ac->nelt; i++)
 	    (*pScreen->RecolorCursor) (pScreen, ac->elts[i].pCursor,
-				       displayed && 
+				       displayed &&
 				       animCurState.elt == i);
     }
     else
@@ -372,11 +372,11 @@ AnimCursorCreate (CursorPtr *cursors, CARD32 *deltas, int ncursor, CursorPtr *pp
     pCursor->bits = &animCursorBits;
     animCursorBits.refcnt++;
     pCursor->refcnt = 1;
-    
+
     pCursor->foreRed = cursors[0]->foreRed;
     pCursor->foreGreen = cursors[0]->foreGreen;
     pCursor->foreBlue = cursors[0]->foreBlue;
-    
+
     pCursor->backRed = cursors[0]->backRed;
     pCursor->backGreen = cursors[0]->backGreen;
     pCursor->backBlue = cursors[0]->backBlue;
@@ -387,14 +387,14 @@ AnimCursorCreate (CursorPtr *cursors, CARD32 *deltas, int ncursor, CursorPtr *pp
     ac = GetAnimCur (pCursor);
     ac->nelt = ncursor;
     ac->elts = (AnimCurElt *) (ac + 1);
-    
+
     for (i = 0; i < ncursor; i++)
     {
 	cursors[i]->refcnt++;
 	ac->elts[i].pCursor = cursors[i];
 	ac->elts[i].delay = deltas[i];
     }
-    
+
     *ppCursor = pCursor;
     return Success;
 }
