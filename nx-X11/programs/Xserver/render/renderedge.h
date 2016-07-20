@@ -52,17 +52,17 @@
  */
 
 typedef struct {
-    xFixed   x;
-    xFixed   e;
-    xFixed   stepx;
-    xFixed   signdx;
-    xFixed   dy;
-    xFixed   dx;
+    xFixed x;
+    xFixed e;
+    xFixed stepx;
+    xFixed signdx;
+    xFixed dy;
+    xFixed dx;
 
-    xFixed   stepx_small;
-    xFixed   stepx_big;
-    xFixed   dx_small;
-    xFixed   dx_big;
+    xFixed stepx_small;
+    xFixed stepx_big;
+    xFixed dx_small;
+    xFixed dx_big;
 } RenderEdge;
 
 /*
@@ -91,30 +91,24 @@ typedef struct {
     }				    \
 }
 
-xFixed
-RenderSampleCeilY (xFixed y, int bpp);
+xFixed RenderSampleCeilY(xFixed y, int bpp);
 
-xFixed
-RenderSampleFloorY (xFixed y, int bpp);
+xFixed RenderSampleFloorY(xFixed y, int bpp);
 
 void
-RenderEdgeStep (RenderEdge *e, int n);
+ RenderEdgeStep(RenderEdge * e, int n);
 
 void
-RenderEdgeInit (RenderEdge	*e,
-		int		bpp,
-		xFixed		y_start,
-		xFixed		x_top,
-		xFixed		y_top,
-		xFixed		x_bot,
-		xFixed		y_bot);
+
+RenderEdgeInit(RenderEdge * e,
+               int bpp,
+               xFixed y_start,
+               xFixed x_top, xFixed y_top, xFixed x_bot, xFixed y_bot);
 
 void
-RenderLineFixedEdgeInit (RenderEdge *e,
-			 int	    bpp,
-			 xFixed	    y,
-			 xLineFixed *line,
-			 int	    x_off,
-			 int	    y_off);
 
-#endif /* _RENDEREDGE_H_ */
+RenderLineFixedEdgeInit(RenderEdge * e,
+                        int bpp,
+                        xFixed y, xLineFixed * line, int x_off, int y_off);
+
+#endif                          /* _RENDEREDGE_H_ */

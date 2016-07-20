@@ -26,16 +26,16 @@
 
 #include "picturestr.h"
 
-#define MI_MAX_INDEXED	256 /* XXX depth must be <= 8 */
+#define MI_MAX_INDEXED	256     /* XXX depth must be <= 8 */
 
 #if MI_MAX_INDEXED <= 256
 typedef CARD8 miIndexType;
 #endif
 
 typedef struct _miIndexed {
-    Bool	color;
-    CARD32	rgba[MI_MAX_INDEXED];
-    miIndexType	ent[32768];
+    Bool color;
+    CARD32 rgba[MI_MAX_INDEXED];
+    miIndexType ent[32768];
 } miIndexedRec, *miIndexedPtr;
 
 #define miCvtR8G8B8to15(s) ((((s) >> 3) & 0x001f) | \
@@ -47,168 +47,134 @@ typedef struct _miIndexed {
 #define miIndexToEntY24(mif,rgb24) ((mif)->ent[CvtR8G8B8toY15(rgb24)])
 
 int
-miCreatePicture (PicturePtr pPicture);
+ miCreatePicture(PicturePtr pPicture);
 
 void
-miDestroyPicture (PicturePtr pPicture);
+ miDestroyPicture(PicturePtr pPicture);
 
 void
-miDestroyPictureClip (PicturePtr pPicture);
+ miDestroyPictureClip(PicturePtr pPicture);
 
 int
-miChangePictureClip (PicturePtr    pPicture,
-		     int	   type,
-		     void *	   value,
-		     int	   n);
+ miChangePictureClip(PicturePtr pPicture, int type, void *value, int n);
 
 void
-miChangePicture (PicturePtr pPicture,
-		 Mask       mask);
+ miChangePicture(PicturePtr pPicture, Mask mask);
 
 void
-miValidatePicture (PicturePtr pPicture,
-		   Mask       mask);
+ miValidatePicture(PicturePtr pPicture, Mask mask);
 
 int
-miChangePictureTransform (PicturePtr	pPicture,
-			  PictTransform *transform);
+ miChangePictureTransform(PicturePtr pPicture, PictTransform * transform);
 
 int
-miChangePictureFilter (PicturePtr pPicture,
-		       int	  filter,
-		       xFixed     *params,
-		       int	  nparams);
+
+miChangePictureFilter(PicturePtr pPicture,
+                      int filter, xFixed * params, int nparams);
 
 Bool
-miClipPicture (RegionPtr    pRegion,
-	       PicturePtr   pPicture,
-	       INT16	    xReg,
-	       INT16	    yReg,
-	       INT16	    xPict,
-	       INT16	    yPict);
+
+miClipPicture(RegionPtr pRegion,
+              PicturePtr pPicture,
+              INT16 xReg, INT16 yReg, INT16 xPict, INT16 yPict);
 
 Bool
-miComputeCompositeRegion (RegionPtr	pRegion,
-			  PicturePtr	pSrc,
-			  PicturePtr	pMask,
-			  PicturePtr	pDst,
-			  INT16		xSrc,
-			  INT16		ySrc,
-			  INT16		xMask,
-			  INT16		yMask,
-			  INT16		xDst,
-			  INT16		yDst,
-			  CARD16	width,
-			  CARD16	height);
+
+miComputeCompositeRegion(RegionPtr pRegion,
+                         PicturePtr pSrc,
+                         PicturePtr pMask,
+                         PicturePtr pDst,
+                         INT16 xSrc,
+                         INT16 ySrc,
+                         INT16 xMask,
+                         INT16 yMask,
+                         INT16 xDst, INT16 yDst, CARD16 width, CARD16 height);
 
 Bool
-miPictureInit (ScreenPtr pScreen, PictFormatPtr formats, int nformats);
+ miPictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats);
 
 void
-miGlyphs (CARD8		op,
-	  PicturePtr	pSrc,
-	  PicturePtr	pDst,
-	  PictFormatPtr	maskFormat,
-	  INT16		xSrc,
-	  INT16		ySrc,
-	  int		nlist,
-	  GlyphListPtr	list,
-	  GlyphPtr	*glyphs);
+
+miGlyphs(CARD8 op,
+         PicturePtr pSrc,
+         PicturePtr pDst,
+         PictFormatPtr maskFormat,
+         INT16 xSrc,
+         INT16 ySrc, int nlist, GlyphListPtr list, GlyphPtr * glyphs);
 
 void
-miRenderColorToPixel (PictFormatPtr pPict,
-		      xRenderColor  *color,
-		      CARD32	    *pixel);
+ miRenderColorToPixel(PictFormatPtr pPict, xRenderColor * color, CARD32 *pixel);
 
 void
-miRenderPixelToColor (PictFormatPtr pPict,
-		      CARD32	    pixel,
-		      xRenderColor  *color);
+ miRenderPixelToColor(PictFormatPtr pPict, CARD32 pixel, xRenderColor * color);
 
 Bool
-miIsSolidAlpha (PicturePtr pSrc);
+ miIsSolidAlpha(PicturePtr pSrc);
 
 void
-miCompositeRects (CARD8		op,
-		  PicturePtr	pDst,
-		  xRenderColor  *color,
-		  int		nRect,
-		  xRectangle    *rects);
+
+miCompositeRects(CARD8 op,
+                 PicturePtr pDst,
+                 xRenderColor * color, int nRect, xRectangle *rects);
 
 void
-miTrapezoidBounds (int ntrap, xTrapezoid *traps, BoxPtr box);
+ miTrapezoidBounds(int ntrap, xTrapezoid * traps, BoxPtr box);
 
 void
-miTrapezoids (CARD8	    op,
-	      PicturePtr    pSrc,
-	      PicturePtr    pDst,
-	      PictFormatPtr maskFormat,
-	      INT16	    xSrc,
-	      INT16	    ySrc,
-	      int	    ntrap,
-	      xTrapezoid    *traps);
+
+miTrapezoids(CARD8 op,
+             PicturePtr pSrc,
+             PicturePtr pDst,
+             PictFormatPtr maskFormat,
+             INT16 xSrc, INT16 ySrc, int ntrap, xTrapezoid * traps);
 
 void
-miPointFixedBounds (int npoint, xPointFixed *points, BoxPtr bounds);
+ miPointFixedBounds(int npoint, xPointFixed * points, BoxPtr bounds);
 
 void
-miTriangleBounds (int ntri, xTriangle *tris, BoxPtr bounds);
+ miTriangleBounds(int ntri, xTriangle * tris, BoxPtr bounds);
 
 void
-miRasterizeTriangle (PicturePtr	pMask,
-		     xTriangle	*tri,
-		     int	x_off,
-		     int	y_off);
+ miRasterizeTriangle(PicturePtr pMask, xTriangle * tri, int x_off, int y_off);
 
 void
-miTriangles (CARD8	    op,
-	     PicturePtr	    pSrc,
-	     PicturePtr	    pDst,
-	     PictFormatPtr  maskFormat,
-	     INT16	    xSrc,
-	     INT16	    ySrc,
-	     int	    ntri,
-	     xTriangle	    *tris);
+
+miTriangles(CARD8 op,
+            PicturePtr pSrc,
+            PicturePtr pDst,
+            PictFormatPtr maskFormat,
+            INT16 xSrc, INT16 ySrc, int ntri, xTriangle * tris);
 
 void
-miTriStrip (CARD8	    op,
-	    PicturePtr	    pSrc,
-	    PicturePtr	    pDst,
-	    PictFormatPtr   maskFormat,
-	    INT16	    xSrc,
-	    INT16	    ySrc,
-	    int		    npoint,
-	    xPointFixed	    *points);
+
+miTriStrip(CARD8 op,
+           PicturePtr pSrc,
+           PicturePtr pDst,
+           PictFormatPtr maskFormat,
+           INT16 xSrc, INT16 ySrc, int npoint, xPointFixed * points);
 
 void
-miTriFan (CARD8		op,
-	  PicturePtr	pSrc,
-	  PicturePtr	pDst,
-	  PictFormatPtr maskFormat,
-	  INT16		xSrc,
-	  INT16		ySrc,
-	  int		npoint,
-	  xPointFixed	*points);
+
+miTriFan(CARD8 op,
+         PicturePtr pSrc,
+         PicturePtr pDst,
+         PictFormatPtr maskFormat,
+         INT16 xSrc, INT16 ySrc, int npoint, xPointFixed * points);
 
 PicturePtr
-miCreateAlphaPicture (ScreenPtr	    pScreen,
-		      PicturePtr    pDst,
-		      PictFormatPtr pPictFormat,
-		      CARD16	    width,
-		      CARD16	    height);
+miCreateAlphaPicture(ScreenPtr pScreen,
+                     PicturePtr pDst,
+                     PictFormatPtr pPictFormat, CARD16 width, CARD16 height);
 
 Bool
-miInitIndexed (ScreenPtr	pScreen,
-	       PictFormatPtr	pFormat);
+ miInitIndexed(ScreenPtr pScreen, PictFormatPtr pFormat);
 
 void
-miCloseIndexed (ScreenPtr	pScreen,
-		PictFormatPtr	pFormat);
+ miCloseIndexed(ScreenPtr pScreen, PictFormatPtr pFormat);
 
 void
-miUpdateIndexed (ScreenPtr	pScreen,
-		 PictFormatPtr	pFormat,
-		 int		ndef,
-		 xColorItem	*pdef);
 
-#endif /* _MIPICT_H_ */
+miUpdateIndexed(ScreenPtr pScreen,
+                PictFormatPtr pFormat, int ndef, xColorItem * pdef);
+
+#endif                          /* _MIPICT_H_ */

@@ -24,9 +24,9 @@
 #ifndef _PICTURE_H_
 #define _PICTURE_H_
 
-typedef struct _DirectFormat	*DirectFormatPtr;
-typedef struct _PictFormat	*PictFormatPtr;
-typedef struct _Picture		*PicturePtr;
+typedef struct _DirectFormat *DirectFormatPtr;
+typedef struct _PictFormat *PictFormatPtr;
+typedef struct _Picture *PicturePtr;
 
 /*
  * While the protocol is generous in format support, the
@@ -104,7 +104,7 @@ typedef struct _Picture		*PicturePtr;
 #define PICT_b1g2r1	PICT_FORMAT(4,PICT_TYPE_ABGR,0,1,2,1)
 #define PICT_a1r1g1b1	PICT_FORMAT(4,PICT_TYPE_ARGB,1,1,1,1)
 #define PICT_a1b1g1r1	PICT_FORMAT(4,PICT_TYPE_ABGR,1,1,1,1)
-				
+
 #define PICT_c4		PICT_FORMAT(4,PICT_TYPE_COLOR,0,0,0,0)
 #define PICT_g4		PICT_FORMAT(4,PICT_TYPE_GRAY,0,0,0,0)
 
@@ -154,49 +154,50 @@ typedef struct _Picture		*PicturePtr;
 #define PictureCmapPolicyColor	    3
 #define PictureCmapPolicyAll	    4
 
-extern int  PictureCmapPolicy;
+extern int PictureCmapPolicy;
 
-int	PictureParseCmapPolicy (const char *name);
+int PictureParseCmapPolicy(const char *name);
 
-extern int	RenderErrBase;
-extern int	RenderClientPrivateIndex;
+extern int RenderErrBase;
+extern int RenderClientPrivateIndex;
 
 /* Fixed point updates from Carl Worth, USC, Information Sciences Institute */
 
 #if defined(WIN32) && !defined(__GNUC__)
-typedef __int64		xFixed_32_32;
+typedef __int64 xFixed_32_32;
 #else
-#  if defined (_LP64) || \
+#if defined (_LP64) || \
       defined(__alpha__) || defined(__alpha) || \
       defined(ia64) || defined(__ia64__) || \
       defined(__sparc64__) || \
       defined(__s390x__) || \
       defined(amd64) || defined (__amd64__)
-typedef long		xFixed_32_32;
-# else
-#  if defined(__GNUC__) && \
+typedef long xFixed_32_32;
+#else
+#if defined(__GNUC__) && \
     ((__GNUC__ > 2) || \
      ((__GNUC__ == 2) && defined(__GNUC_MINOR__) && (__GNUC_MINOR__ > 7)))
 __extension__
-#  endif
-typedef long long int	xFixed_32_32;
-# endif
+#endif
+typedef long long int xFixed_32_32;
+#endif
 #endif
 
-typedef xFixed_32_32	xFixed_48_16;
+typedef xFixed_32_32 xFixed_48_16;
 
 #define MAX_FIXED_48_16	    ((xFixed_48_16) 0x7fffffff)
 #define MIN_FIXED_48_16	    (-((xFixed_48_16) 1 << 31))
 
-typedef CARD32		xFixed_1_31;
-typedef CARD32		xFixed_1_16;
-typedef INT32		xFixed_16_16;
+typedef CARD32 xFixed_1_31;
+typedef CARD32 xFixed_1_16;
+typedef INT32 xFixed_16_16;
 
 /*
  * An unadorned "xFixed" is the same as xFixed_16_16,
  * (since it's quite common in the code)
  */
-typedef	xFixed_16_16	xFixed;
+typedef xFixed_16_16 xFixed;
+
 #define XFIXED_BITS	16
 
 #define xFixedToInt(f)	(int) ((f) >> XFIXED_BITS)
@@ -232,4 +233,4 @@ typedef	xFixed_16_16	xFixed;
 				  (((s) >>  8) & 0xff) * 301 + \
 				  (((s)      ) & 0xff) * 58) >> 2)
 
-#endif /* _PICTURE_H_ */
+#endif                          /* _PICTURE_H_ */

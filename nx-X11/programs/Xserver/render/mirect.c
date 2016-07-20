@@ -33,153 +33,135 @@
 #include "mipict.h"
 
 static void
-miColorRects (PicturePtr    pDst,
-	      PicturePtr    pClipPict,
-	      xRenderColor  *color,
-	      int	    nRect,
-	      xRectangle    *rects,
-	      int	    xoff,
-	      int	    yoff)
+miColorRects(PicturePtr pDst,
+             PicturePtr pClipPict,
+             xRenderColor * color,
+             int nRect, xRectangle *rects, int xoff, int yoff)
 {
-    ScreenPtr		pScreen = pDst->pDrawable->pScreen;
-    CARD32		pixel;
-    GCPtr		pGC;
-    CARD32		tmpval[5];
-    RegionPtr		pClip;
-    unsigned long	mask;
+    ScreenPtr pScreen = pDst->pDrawable->pScreen;
+    CARD32 pixel;
+    GCPtr pGC;
+    CARD32 tmpval[5];
+    RegionPtr pClip;
+    unsigned long mask;
 
-    miRenderColorToPixel (pDst->pFormat, color, &pixel);
+    miRenderColorToPixel(pDst->pFormat, color, &pixel);
 
-    pGC = GetScratchGC (pDst->pDrawable->depth, pScreen);
+    pGC = GetScratchGC(pDst->pDrawable->depth, pScreen);
     if (!pGC)
-	return;
+        return;
     tmpval[0] = GXcopy;
     tmpval[1] = pixel;
     tmpval[2] = pDst->subWindowMode;
     mask = GCFunction | GCForeground | GCSubwindowMode;
-    if (pClipPict->clientClipType == CT_REGION)
-    {
-	tmpval[3] = pDst->clipOrigin.x - xoff;
-	tmpval[4] = pDst->clipOrigin.y - yoff;
-	mask |= GCClipXOrigin|GCClipYOrigin;
-	
-	pClip = RegionCreate(NULL, 1);
-	RegionCopy(pClip,
-		     (RegionPtr) pClipPict->clientClip);
-	(*pGC->funcs->ChangeClip) (pGC, CT_REGION, pClip, 0);
+    if (pClipPict->clientClipType == CT_REGION) {
+        tmpval[3] = pDst->clipOrigin.x - xoff;
+        tmpval[4] = pDst->clipOrigin.y - yoff;
+        mask |= GCClipXOrigin | GCClipYOrigin;
+
+        pClip = RegionCreate(NULL, 1);
+        RegionCopy(pClip, (RegionPtr) pClipPict->clientClip);
+        (*pGC->funcs->ChangeClip) (pGC, CT_REGION, pClip, 0);
     }
 
-    ChangeGC (pGC, mask, tmpval);
-    ValidateGC (pDst->pDrawable, pGC);
-    if (xoff || yoff)
-    {
-	int	i;
-	for (i = 0; i < nRect; i++)
-	{
-	    rects[i].x -= xoff;
-	    rects[i].y -= yoff;
-	}
+    ChangeGC(pGC, mask, tmpval);
+    ValidateGC(pDst->pDrawable, pGC);
+    if (xoff || yoff) {
+        int i;
+
+        for (i = 0; i < nRect; i++) {
+            rects[i].x -= xoff;
+            rects[i].y -= yoff;
+        }
     }
     (*pGC->ops->PolyFillRect) (pDst->pDrawable, pGC, nRect, rects);
-    if (xoff || yoff)
-    {
-	int	i;
-	for (i = 0; i < nRect; i++)
-	{
-	    rects[i].x += xoff;
-	    rects[i].y += yoff;
-	}
+    if (xoff || yoff) {
+        int i;
+
+        for (i = 0; i < nRect; i++) {
+            rects[i].x += xoff;
+            rects[i].y += yoff;
+        }
     }
-    FreeScratchGC (pGC);
+    FreeScratchGC(pGC);
 }
 
 void
-miCompositeRects (CARD8		op,
-		  PicturePtr	pDst,
-		  xRenderColor  *color,
-		  int		nRect,
-		  xRectangle    *rects)
+miCompositeRects(CARD8 op,
+                 PicturePtr pDst,
+                 xRenderColor * color, int nRect, xRectangle *rects)
 {
-    ScreenPtr		pScreen = pDst->pDrawable->pScreen;
+    ScreenPtr pScreen = pDst->pDrawable->pScreen;
 
-    if (color->alpha == 0xffff)
-    {
-	if (op == PictOpOver)
-	    op = PictOpSrc;
+    if (color->alpha == 0xffff) {
+        if (op == PictOpOver)
+            op = PictOpSrc;
     }
     if (op == PictOpClear)
-	color->red = color->green = color->blue = color->alpha = 0;
+        color->red = color->green = color->blue = color->alpha = 0;
 
-    if (op == PictOpSrc || op == PictOpClear)
-    {
-	miColorRects (pDst, pDst, color, nRect, rects, 0, 0);
-	if (pDst->alphaMap)
-	    miColorRects (pDst->alphaMap, pDst,
-			  color, nRect, rects,
-			  pDst->alphaOrigin.x,
-			  pDst->alphaOrigin.y);
+    if (op == PictOpSrc || op == PictOpClear) {
+        miColorRects(pDst, pDst, color, nRect, rects, 0, 0);
+        if (pDst->alphaMap)
+            miColorRects(pDst->alphaMap, pDst,
+                         color, nRect, rects,
+                         pDst->alphaOrigin.x, pDst->alphaOrigin.y);
     }
-    else
-    {
-	PictFormatPtr	rgbaFormat;
-	PixmapPtr	pPixmap;
-	PicturePtr	pSrc;
-	xRectangle	one;
-	int		error;
-	Pixel		pixel;
-	GCPtr		pGC;
-	CARD32		tmpval[2];
+    else {
+        PictFormatPtr rgbaFormat;
+        PixmapPtr pPixmap;
+        PicturePtr pSrc;
+        xRectangle one;
+        int error;
+        Pixel pixel;
+        GCPtr pGC;
+        CARD32 tmpval[2];
 
-	rgbaFormat = PictureMatchFormat (pScreen, 32, PICT_a8r8g8b8);
-	if (!rgbaFormat)
-	    goto bail1;
-	
-	pPixmap = (*pScreen->CreatePixmap) (pScreen, 1, 1,
-					    rgbaFormat->depth,
-					    CREATE_PIXMAP_USAGE_SCRATCH);
-	if (!pPixmap)
-	    goto bail2;
-	
-	miRenderColorToPixel (rgbaFormat, color, &pixel);
+        rgbaFormat = PictureMatchFormat(pScreen, 32, PICT_a8r8g8b8);
+        if (!rgbaFormat)
+            goto bail1;
 
-	pGC = GetScratchGC (rgbaFormat->depth, pScreen);
-	if (!pGC)
-	    goto bail3;
-	tmpval[0] = GXcopy;
-	tmpval[1] = pixel;
+        pPixmap = (*pScreen->CreatePixmap) (pScreen, 1, 1, rgbaFormat->depth,
+                                            CREATE_PIXMAP_USAGE_SCRATCH);
+        if (!pPixmap)
+            goto bail2;
 
-	ChangeGC (pGC, GCFunction | GCForeground, tmpval);
-	ValidateGC (&pPixmap->drawable, pGC);
-	one.x = 0;
-	one.y = 0;
-	one.width = 1;
-	one.height = 1;
-	(*pGC->ops->PolyFillRect) (&pPixmap->drawable, pGC, 1, &one);
-	
-	tmpval[0] = xTrue;
-	pSrc = CreatePicture (0, &pPixmap->drawable, rgbaFormat,
-			      CPRepeat, tmpval, 0, &error);
-			
-	if (!pSrc)
-	    goto bail4;
+        miRenderColorToPixel(rgbaFormat, color, &pixel);
 
-	while (nRect--)
-	{
-	    CompositePicture (op, pSrc, 0, pDst, 0, 0, 0, 0,
-			      rects->x,
-			      rects->y,
-			      rects->width,
-			      rects->height);
-	    rects++;
-	}
+        pGC = GetScratchGC(rgbaFormat->depth, pScreen);
+        if (!pGC)
+            goto bail3;
+        tmpval[0] = GXcopy;
+        tmpval[1] = pixel;
 
-	FreePicture ((void *) pSrc, 0);
-bail4:
-	FreeScratchGC (pGC);
-bail3:
-	(*pScreen->DestroyPixmap) (pPixmap);
-bail2:
-bail1:
-	;
+        ChangeGC(pGC, GCFunction | GCForeground, tmpval);
+        ValidateGC(&pPixmap->drawable, pGC);
+        one.x = 0;
+        one.y = 0;
+        one.width = 1;
+        one.height = 1;
+        (*pGC->ops->PolyFillRect) (&pPixmap->drawable, pGC, 1, &one);
+
+        tmpval[0] = xTrue;
+        pSrc = CreatePicture(0, &pPixmap->drawable, rgbaFormat,
+                             CPRepeat, tmpval, 0, &error);
+
+        if (!pSrc)
+            goto bail4;
+
+        while (nRect--) {
+            CompositePicture(op, pSrc, 0, pDst, 0, 0, 0, 0,
+                             rects->x, rects->y, rects->width, rects->height);
+            rects++;
+        }
+
+        FreePicture((void *) pSrc, 0);
+ bail4:
+        FreeScratchGC(pGC);
+ bail3:
+        (*pScreen->DestroyPixmap) (pPixmap);
+ bail2:
+ bail1:
+        ;
     }
 }
