@@ -128,6 +128,28 @@ FreeCursor(void * value, XID cid)
     return(Success);
 }
 
+CursorPtr
+RefCursor(CursorPtr cursor)
+{
+    if (cursor)
+        cursor->refcnt++;
+    return cursor;
+}
+
+CursorPtr
+UnrefCursor(CursorPtr cursor)
+{
+    if (cursor)
+        cursor->refcnt--;
+    return cursor;
+}
+
+int
+CursorRefCount(const CursorPtr cursor)
+{
+    return cursor ? cursor->refcnt : 0;
+}
+
 
 /*
  * We check for empty cursors so that we won't have to display them

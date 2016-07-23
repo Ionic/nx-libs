@@ -772,6 +772,9 @@ typedef struct {
 
 extern CallbackListPtr SelectionCallback;
 
+extern Bool
+IsPointerDevice(DeviceIntPtr dev);
+
 typedef enum {
     SelectionSetOwner,
     SelectionWindowDestroy,

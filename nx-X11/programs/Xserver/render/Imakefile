@@ -49,8 +49,8 @@ NXAGENT_SKIP_OBJS =             \
                 `pkg-config --cflags-only-I pixman-1`
    LINTLIBS = ../dix/llib-ldix.ln ../os/llib-los.ln
 
-    DEFINES = 			\
-              $(NX_DEFINES)	\
+    DEFINES = -UNEED_NEWER_XORG_VERSION	\
+              $(NX_DEFINES)		\
               $(NULL)
 
 NormalLibraryTarget(render,$(OBJS))

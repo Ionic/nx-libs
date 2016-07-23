@@ -68,6 +68,10 @@ extern int FreeCursor(
     void * /*pCurs*/,
     XID /*cid*/);
 
+extern CursorPtr RefCursor(CursorPtr /* cursor */);
+extern CursorPtr UnrefCursor(CursorPtr /* cursor */);
+extern int CursorRefCount(const CursorPtr /* cursor */);
+
 /* Quartz support on Mac OS X pulls in the QuickDraw
    framework whose AllocCursor function conflicts here. */ 
 #ifdef __DARWIN__
