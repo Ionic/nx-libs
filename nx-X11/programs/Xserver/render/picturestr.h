@@ -409,34 +409,34 @@ PictFormatPtr PictureMatchFormat(ScreenPtr pScreen, int depth, CARD32 format);
 Bool
  PictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats);
 
-int
- PictureGetFilterId(char *filter, int len, Bool makeit);
+extern _X_EXPORT int
+ PictureGetFilterId(const char *filter, int len, Bool makeit);
 
-char *PictureGetFilterName(int id);
+extern _X_EXPORT char *PictureGetFilterName(int id);
 
-int
-
+extern _X_EXPORT int
 PictureAddFilter(ScreenPtr pScreen,
-                 char *filter, PictFilterValidateParamsProcPtr ValidateParams);
+                 const char *filter,
+                 PictFilterValidateParamsProcPtr ValidateParams,
+                 int width, int height);
 
-Bool
- PictureSetFilterAlias(ScreenPtr pScreen, char *filter, char *alias);
+extern _X_EXPORT Bool
+PictureSetFilterAlias(ScreenPtr pScreen, const char *filter, const char *alias);
 
-Bool
+extern _X_EXPORT Bool
  PictureSetDefaultFilters(ScreenPtr pScreen);
 
-void
+extern _X_EXPORT void
  PictureResetFilters(ScreenPtr pScreen);
 
-PictFilterPtr PictureFindFilter(ScreenPtr pScreen, char *name, int len);
+extern _X_EXPORT PictFilterPtr
+PictureFindFilter(ScreenPtr pScreen, char *name, int len);
 
-int
-
+extern _X_EXPORT int
 SetPicturePictFilter(PicturePtr pPicture, PictFilterPtr pFilter,
                      xFixed * params, int nparams);
 
-int
-
+extern _X_EXPORT int
 SetPictureFilter(PicturePtr pPicture, char *name, int len,
                  xFixed * params, int nparams);
 

@@ -49,7 +49,7 @@ static int nfilterNames;
  */
 
 int
-PictureGetFilterId(char *filter, int len, Bool makeit)
+PictureGetFilterId(const char *filter, int len, Bool makeit)
 {
     int i;
     char *name;
@@ -58,9 +58,8 @@ PictureGetFilterId(char *filter, int len, Bool makeit)
     if (len < 0)
         len = strlen(filter);
     for (i = 0; i < nfilterNames; i++)
-        if (!CompareISOLatin1Lowered
-            ((unsigned char *) filterNames[i], -1, (unsigned char *) filter,
-             len))
+        if (!CompareISOLatin1Lowered((const unsigned char *) filterNames[i], -1,
+                                     (const unsigned char *) filter, len))
             return i;
     if (!makeit)
         return -1;
@@ -70,7 +69,7 @@ PictureGetFilterId(char *filter, int len, Bool makeit)
     memcpy(name, filter, len);
     name[len] = '\0';
     if (filterNames)
-        names = realloc(filterNames, (nfilterNames + 1) * sizeof(char *));
+        names = reallocarray(filterNames, nfilterNames + 1, sizeof(char *));
     else
         names = malloc(sizeof(char *));
     if (!names) {
@@ -129,7 +128,9 @@ PictureFreeFilterIds(void)
 
 int
 PictureAddFilter(ScreenPtr pScreen,
-                 char *filter, PictFilterValidateParamsProcPtr ValidateParams)
+                 const char *filter,
+                 PictFilterValidateParamsProcPtr ValidateParams,
+                 int width, int height)
 {
     PictureScreenPtr ps = GetPictureScreen(pScreen);
     int id = PictureGetFilterId(filter, -1, TRUE);
@@ -146,7 +147,7 @@ PictureAddFilter(ScreenPtr pScreen,
             return -1;
     if (ps->filters)
         filters =
-            realloc(ps->filters, (ps->nfilters + 1) * sizeof(PictFilterRec));
+            reallocarray(ps->filters, ps->nfilters + 1, sizeof(PictFilterRec));
     else
         filters = malloc(sizeof(PictFilterRec));
     if (!filters)
@@ -156,11 +157,13 @@ PictureAddFilter(ScreenPtr pScreen,
     ps->filters[i].name = PictureGetFilterName(id);
     ps->filters[i].id = id;
     ps->filters[i].ValidateParams = ValidateParams;
+    ps->filters[i].width = width;
+    ps->filters[i].height = height;
     return id;
 }
 
 Bool
-PictureSetFilterAlias(ScreenPtr pScreen, char *filter, char *alias)
+PictureSetFilterAlias(ScreenPtr pScreen, const char *filter, const char *alias)
 {
     PictureScreenPtr ps = GetPictureScreen(pScreen);
     int filter_id = PictureGetFilterId(filter, -1, FALSE);
@@ -176,9 +179,9 @@ PictureSetFilterAlias(ScreenPtr pScreen, char *filter, char *alias)
         PictFilterAliasPtr aliases;
 
         if (ps->filterAliases)
-            aliases = realloc(ps->filterAliases,
-                              (ps->nfilterAliases + 1) *
-                              sizeof(PictFilterAliasRec));
+            aliases = reallocarray(ps->filterAliases,
+                                   ps->nfilterAliases + 1,
+                                   sizeof(PictFilterAliasRec));
         else
             aliases = malloc(sizeof(PictFilterAliasRec));
         if (!aliases)
@@ -246,9 +249,9 @@ PictureSetDefaultFilters(ScreenPtr pScreen)
     if (!filterNames)
         if (!PictureSetDefaultIds())
             return FALSE;
-    if (PictureAddFilter(pScreen, FilterNearest, 0) < 0)
+    if (PictureAddFilter(pScreen, FilterNearest, 0, 1, 1) < 0)
         return FALSE;
-    if (PictureAddFilter(pScreen, FilterBilinear, 0) < 0)
+    if (PictureAddFilter(pScreen, FilterBilinear, 0, 2, 2) < 0)
         return FALSE;
 
     if (!PictureSetFilterAlias(pScreen, FilterNearest, FilterFast))
@@ -259,7 +262,7 @@ PictureSetDefaultFilters(ScreenPtr pScreen)
         return FALSE;
 
     if (PictureAddFilter
-        (pScreen, FilterConvolution, convolutionFilterValidateParams) < 0)
+        (pScreen, FilterConvolution, convolutionFilterValidateParams, 0, 0) < 0)
         return FALSE;
 
     return TRUE;
@@ -272,7 +275,10 @@ PictureResetFilters(ScreenPtr pScreen)
 
     free(ps->filters);
     free(ps->filterAliases);
-    PictureFreeFilterIds();
+
+    /* Free the filters when the last screen is closed */
+    if (pScreen->myNum == 0)
+        PictureFreeFilterIds();
 }
 
 int
@@ -282,7 +288,7 @@ SetPictureFilter(PicturePtr pPicture, char *name, int len, xFixed * params,
     PictFilterPtr pFilter;
     ScreenPtr pScreen;
 
-    if (pPicture->pDrawable) {
+    if (pPicture->pDrawable != NULL) {
         pScreen = pPicture->pDrawable->pScreen;
     }
     else {
@@ -336,7 +342,7 @@ SetPicturePictFilter(PicturePtr pPicture, PictFilterPtr pFilter,
     }
 
     if (nparams != pPicture->filter_nparams) {
-        xFixed *new_params = malloc(nparams * sizeof(xFixed));
+        xFixed *new_params = xallocarray(nparams, sizeof(xFixed));
 
         if (!new_params && nparams)
             return BadAlloc;
@@ -357,7 +363,6 @@ SetPicturePictFilter(PicturePtr pPicture, PictFilterPtr pFilter,
 
         return result;
     }
-    pPicture->serialNumber |= GC_CHANGE_SERIAL_BIT;
 
     return Success;
 }
