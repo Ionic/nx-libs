@@ -353,9 +353,9 @@ extern void CopyISOLatin1Lowered(
     int /*length*/);
 
 extern int CompareISOLatin1Lowered(
-    unsigned char * /*a*/,
+    const unsigned char * /*a*/,
     int alen,
-    unsigned char * /*b*/,
+    const unsigned char * /*b*/,
     int blen);
 
 #ifdef XCSECURITY
