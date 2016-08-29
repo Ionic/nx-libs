@@ -501,8 +501,7 @@ CompositePicture(CARD8 op,
                  INT16 yMask,
                  INT16 xDst, INT16 yDst, CARD16 width, CARD16 height);
 
-void
-
+extern _X_EXPORT void
 CompositeGlyphs(CARD8 op,
                 PicturePtr pSrc,
                 PicturePtr pDst,

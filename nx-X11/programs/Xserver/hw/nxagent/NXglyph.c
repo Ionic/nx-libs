@@ -46,6 +46,13 @@
  * Author:  Keith Packard, SuSE, Inc.
  */
 
+#include "dixstruct.h"
+#include "glyphstr.h"
+
+
+static Bool ResizeGlyphHash(GlyphHashPtr hash, CARD32 change, Bool global);
+
+
 #include "../../render/glyph.c"
 
 #ifdef NXAGENT_SERVER
@@ -60,32 +67,34 @@
 #endif
 
 void
-AddGlyph (GlyphSetPtr glyphSet, GlyphPtr glyph, Glyph id)
+AddGlyph(GlyphSetPtr glyphSet, GlyphPtr glyph, Glyph id)
 {
     GlyphRefPtr	    gr;
-    CARD32	    hash;
+    CARD32	    signature;
 
-    CheckDuplicates (&globalGlyphs[glyphSet->fdepth], "AddGlyph top global");
+    CheckDuplicates(&globalGlyphs[glyphSet->fdepth], "AddGlyph top global");
     /* Locate existing matching glyph */
-    hash = HashGlyph (glyph);
-    gr = FindGlyphRef (&globalGlyphs[glyphSet->fdepth], hash, TRUE, glyph);
-    if (gr->glyph && gr->glyph != DeletedGlyph)
-    {
-	free (glyph);
+    signature = *(CARD32 *) glyph->sha1;
+    gr = FindGlyphRef(&globalGlyphs[glyphSet->fdepth], signature,
+                      TRUE, glyph->sha1);
+    if (gr->glyph && gr->glyph != DeletedGlyph && gr->glyph != glyph) {
+	FreeGlyphPicture(glyph);
+#ifdef NEED_NEWER_XORG_VERSION
+        dixFreeObjectWithPrivates(glyph, PRIVATE_GLYPH);
+#endif
 	glyph = gr->glyph;
     }
-    else
-    {
+    else if (gr->glyph != glyph) {
 	gr->glyph = glyph;
-	gr->signature = hash;
+	gr->signature = signature;
 	globalGlyphs[glyphSet->fdepth].tableEntries++;
     }
  
     /* Insert/replace glyphset value */
-    gr = FindGlyphRef (&glyphSet->hash, id, FALSE, 0);
+    gr = FindGlyphRef(&glyphSet->hash, id, FALSE, 0);
     ++glyph->refcnt;
     if (gr->glyph && gr->glyph != DeletedGlyph)
-	FreeGlyph (gr->glyph, glyphSet->fdepth);
+	FreeGlyph(gr->glyph, glyphSet->fdepth);
     else
 	glyphSet->hash.tableEntries++;
     gr->glyph = glyph;
@@ -97,37 +106,36 @@ AddGlyph (GlyphSetPtr glyphSet, GlyphPtr glyph, Glyph id)
 
     #endif
 
-    CheckDuplicates (&globalGlyphs[glyphSet->fdepth], "AddGlyph bottom");
+    CheckDuplicates(&globalGlyphs[glyphSet->fdepth], "AddGlyph bottom");
 }
 
-GlyphPtr FindGlyph (GlyphSetPtr glyphSet, Glyph id)
+GlyphPtr
+FindGlyph(GlyphSetPtr glyphSet, Glyph id)
 {
   GlyphRefPtr gr;
   GlyphPtr    glyph;
 
-  gr = FindGlyphRef (&glyphSet->hash, id, FALSE, 0);
+  gr = FindGlyphRef(&glyphSet->hash, id, FALSE, 0);
   glyph = gr -> glyph;
 
-  if (glyph == DeletedGlyph)
-  {
-    glyph = 0;
+  if (glyph == DeletedGlyph) {
+      glyph = 0;
   }
-  else if (gr -> corruptedGlyph == 1)
-  {
-     #ifdef DEBUG
-     fprintf(stderr, "FindGlyphRef: Going to synchronize the glyph [%p] for glyphset [%p].\n",
-                 (void *) glyph, (void *) glyphSet);
-     #endif
+  else if (gr -> corruptedGlyph == 1) {
+      #ifdef DEBUG
+      fprintf(stderr, "FindGlyphRef: Going to synchronize the glyph [%p] for glyphset [%p].\n",
+                  (void *) glyph, (void *) glyphSet);
+      #endif
 
-    nxagentAddGlyphs(glyphSet, &id, &(glyph -> info), 1,
-                         (CARD8*)(glyph + 1), glyph -> size - sizeof(xGlyphInfo));
+      nxagentAddGlyphs(glyphSet, &id, &(glyph -> info), 1,
+                           (CARD8*)(glyph + 1), glyph -> size - sizeof(xGlyphInfo));
   }
 
   return glyph;
 }
 
-Bool
-ResizeGlyphHash (GlyphHashPtr hash, CARD32 change, Bool global)
+static Bool
+ResizeGlyphHash(GlyphHashPtr hash, CARD32 change, Bool global)
 {
     CARD32	    tableEntries;
     GlyphHashSetPtr hashSet;
@@ -145,21 +153,18 @@ ResizeGlyphHash (GlyphHashPtr hash, CARD32 change, Bool global)
     #endif
 
     tableEntries = hash->tableEntries + change;
-    hashSet = FindGlyphHashSet (tableEntries);
+    hashSet = FindGlyphHashSet(tableEntries);
     if (hashSet == hash->hashSet)
 	return TRUE;
     if (global)
-	CheckDuplicates (hash, "ResizeGlyphHash top");
-    if (!AllocateGlyphHash (&newHash, hashSet))
+	CheckDuplicates(hash, "ResizeGlyphHash top");
+    if (!AllocateGlyphHash(&newHash, hashSet))
 	return FALSE;
-    if (hash->table)
-    {
+    if (hash->table) {
 	oldSize = hash->hashSet->size;
-	for (i = 0; i < oldSize; i++)
-	{
+	for (i = 0; i < oldSize; i++) {
 	    glyph = hash->table[i].glyph;
-	    if (glyph && glyph != DeletedGlyph)
-	    {
+	    if (glyph && glyph != DeletedGlyph) {
 		s = hash->table[i].signature;
 
                 #ifdef NXAGENT_SERVER
@@ -168,7 +173,7 @@ ResizeGlyphHash (GlyphHashPtr hash, CARD32 change, Bool global)
 
                 #endif
 
-		gr = FindGlyphRef (&newHash, s, global, glyph);
+		gr = FindGlyphRef(&newHash, s, global, glyph->sha1);
 		gr->signature = s;
 		gr->glyph = glyph;
 
@@ -181,26 +186,22 @@ ResizeGlyphHash (GlyphHashPtr hash, CARD32 change, Bool global)
 		++newHash.tableEntries;
 	    }
 	}
-	free (hash->table);
+	free(hash->table);
     }
     *hash = newHash;
     if (global)
-	CheckDuplicates (hash, "ResizeGlyphHash bottom");
+	CheckDuplicates(hash, "ResizeGlyphHash bottom");
     return TRUE;
 }
 
 void
-miGlyphs (CARD8		op,
-	  PicturePtr	pSrc,
-	  PicturePtr	pDst,
-	  PictFormatPtr	maskFormat,
-	  INT16		xSrc,
-	  INT16		ySrc,
-	  int		nlist,
-	  GlyphListPtr	list,
-	  GlyphPtr	*glyphs)
+miGlyphs(CARD8		op,
+	 PicturePtr	pSrc,
+	 PicturePtr	pDst,
+	 PictFormatPtr	maskFormat,
+	 INT16		xSrc,
+	 INT16		ySrc, int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 {
-    PixmapPtr	pPixmap = 0;
     PicturePtr	pPicture;
     PixmapPtr   pMaskPixmap = 0;
     PicturePtr  pMask;
@@ -211,30 +212,20 @@ miGlyphs (CARD8		op,
     int		n;
     GlyphPtr	glyph;
     int		error;
-    BoxRec	extents;
+    BoxRec	extents = { 0, 0, 0, 0 };
     CARD32	component_alpha;
 
-    /*
-     * Get rid of the warning.
-     */
-
-    extents.x1 = 0;
-    extents.y1 = 0;
-
-    if (maskFormat)
-    {
+    if (maskFormat) {
 	GCPtr	    pGC;
 	xRectangle  rect;
 
-        if (nxagentGlyphsExtents != NullBox)
-        {
+        if (nxagentGlyphsExtents != NullBox) {
           memcpy(&extents, nxagentGlyphsExtents, sizeof(BoxRec));
         }
-        else
-        {
+        else {
           nxagentGlyphsExtents = (BoxPtr) malloc(sizeof(BoxRec));
 
-          GlyphExtents (nlist, list, glyphs, &extents);
+          GlyphExtents(nlist, list, glyphs, &extents);
 
           memcpy(nxagentGlyphsExtents, &extents, sizeof(BoxRec));
         }
@@ -244,71 +235,48 @@ miGlyphs (CARD8		op,
 	width = extents.x2 - extents.x1;
 	height = extents.y2 - extents.y1;
 	pMaskPixmap = (*pScreen->CreatePixmap) (pScreen, width, height,
-	                                        maskFormat->depth,
-	                                        CREATE_PIXMAP_USAGE_SCRATCH);
+                                                maskFormat->depth,
+                                                CREATE_PIXMAP_USAGE_SCRATCH);
 
 	if (!pMaskPixmap)
 	    return;
-
 	component_alpha = NeedsComponent(maskFormat->format);
-	pMask = CreatePicture (0, &pMaskPixmap->drawable,
-			       maskFormat, CPComponentAlpha, &component_alpha,
-			       serverClient, &error);
-
-	if (!pMask)
-	{
+	pMask = CreatePicture(0, &pMaskPixmap->drawable,
+			      maskFormat, CPComponentAlpha, &component_alpha,
+			      serverClient, &error);
+	if (!pMask) {
 	    (*pScreen->DestroyPixmap) (pMaskPixmap);
 	    return;
 	}
-	pGC = GetScratchGC (pMaskPixmap->drawable.depth, pScreen);
-	ValidateGC (&pMaskPixmap->drawable, pGC);
+	pGC = GetScratchGC(pMaskPixmap->drawable.depth, pScreen);
+	ValidateGC(&pMaskPixmap->drawable, pGC);
 	rect.x = 0;
 	rect.y = 0;
 	rect.width = width;
 	rect.height = height;
 	(*pGC->ops->PolyFillRect) (&pMaskPixmap->drawable, pGC, 1, &rect);
-	FreeScratchGC (pGC);
+	FreeScratchGC(pGC);
 	x = -extents.x1;
 	y = -extents.y1;
     }
-    else
-    {
+    else {
 	pMask = pDst;
 	x = 0;
 	y = 0;
     }
-    pPicture = 0;
-    while (nlist--)
-    {
+    while (nlist--) {
 	x += list->xOff;
 	y += list->yOff;
 	n = list->len;
-
-	while (n--)
-	{
+	while (n--) {
 	    glyph = *glyphs++;
-	    if (!pPicture)
-	    {
-		pPixmap = GetScratchPixmapHeader (pScreen, glyph->info.width, glyph->info.height, 
-						  list->format->depth,
-						  list->format->depth, 
-						  0, (void *) (glyph + 1));
-		if (!pPixmap)
-		    return;
-		component_alpha = NeedsComponent(list->format->format);
-		pPicture = CreatePicture (0, &pPixmap->drawable, list->format,
-					  CPComponentAlpha, &component_alpha, 
-					  serverClient, &error);
-		if (!pPicture)
-		{
-		    FreeScratchPixmapHeader (pPixmap);
-		    return;
-		}
-	    }
-	    (*pScreen->ModifyPixmapHeader) (pPixmap, 
-					    glyph->info.width, glyph->info.height,
-					    0, 0, -1, (void *) (glyph + 1));
+            pPicture = GetGlyphPicture(glyph, pScreen);
 
+            /* ----snip----
+             * This is a left-over from when the function still created a Picture
+             * when needed. Given that it now always gets a valid Picture,
+             * we probably don't need this code anymore and disable it.
+             */
             /*
              * The following line fixes a problem with glyphs that appeared
              * as clipped. It was a side effect due the validate function
@@ -318,64 +286,48 @@ miGlyphs (CARD8		op,
              */
 
             pPicture->pDrawable->serialNumber = NEXT_SERIAL_NUMBER;
+            /* ----snip---- */
 
-	    pPixmap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
-	    if (maskFormat)
-	    {
-		CompositePicture (PictOpAdd,
-				  pPicture,
-				  None,
-				  pMask,
-				  0, 0,
-				  0, 0,
-				  x - glyph->info.x,
-				  y - glyph->info.y,
-				  glyph->info.width,
-				  glyph->info.height);
-	    }
-	    else
-	    {
-		CompositePicture (op,
-				  pSrc,
-				  pPicture,
-				  pDst,
-				  xSrc + (x - glyph->info.x) - xDst,
-				  ySrc + (y - glyph->info.y) - yDst,
-				  0, 0,
-				  x - glyph->info.x,
-				  y - glyph->info.y,
-				  glyph->info.width,
-				  glyph->info.height);
-	    }
+            if (pPicture) {
+                if (maskFormat) {
+                    CompositePicture(PictOpAdd,
+                                     pPicture,
+                                     None,
+                                     pMask,
+                                     0, 0,
+                                     0, 0,
+                                     x - glyph->info.x,
+                                     y - glyph->info.y,
+                                     glyph->info.width, glyph->info.height);
+                }
+                else {
+                    CompositePicture(op,
+                                     pSrc,
+                                     pPicture,
+                                     pDst,
+                                     xSrc + (x - glyph->info.x) - xDst,
+                                     ySrc + (y - glyph->info.y) - yDst,
+                                     0, 0,
+                                     x - glyph->info.x,
+                                     y - glyph->info.y,
+                                     glyph->info.width, glyph->info.height);
+                }
+            }
 	    x += glyph->info.xOff;
 	    y += glyph->info.yOff;
 	}
-
 	list++;
-	if (pPicture)
-	{
-	    FreeScratchPixmapHeader (pPixmap);
-	    FreePicture ((void *) pPicture, 0);
-	    pPicture = 0;
-	    pPixmap = 0;
-	}
     }
-    if (maskFormat)
-    {
+    if (maskFormat) {
 	x = extents.x1;
 	y = extents.y1;
-	CompositePicture (op,
-			  pSrc,
-			  pMask,
-			  pDst,
-			  xSrc + x - xDst,
-			  ySrc + y - yDst,
-			  0, 0,
-			  x, y,
-			  width, height);
-
-	FreePicture ((void *) pMask, (XID) 0);
+	CompositePicture(op,
+			 pSrc,
+			 pMask,
+			 pDst,
+			 xSrc + x - xDst,
+			 ySrc + y - yDst, 0, 0, x, y, width, height);
+	FreePicture((void *) pMask, (XID) 0);
 	(*pScreen->DestroyPixmap) (pMaskPixmap);
     }
-
 }

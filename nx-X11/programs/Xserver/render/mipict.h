@@ -93,7 +93,13 @@ miComputeCompositeRegion(RegionPtr pRegion,
 Bool
  miPictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats);
 
-void
+extern _X_EXPORT Bool
+ miRealizeGlyph(ScreenPtr pScreen, GlyphPtr glyph);
+
+extern _X_EXPORT void
+ miUnrealizeGlyph(ScreenPtr pScreen, GlyphPtr glyph);
+
+extern _X_EXPORT void
 
 miGlyphs(CARD8 op,
          PicturePtr pSrc,

@@ -660,12 +660,6 @@ PictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats)
         return FALSE;
     }
     SetPictureScreen(pScreen, ps);
-    if (!GlyphInit(pScreen)) {
-        SetPictureScreen(pScreen, 0);
-        free(formats);
-        free(ps);
-        return FALSE;
-    }
 
     ps->totalPictureSize = sizeof(PictureRec);
     ps->PicturePrivateSizes = 0;

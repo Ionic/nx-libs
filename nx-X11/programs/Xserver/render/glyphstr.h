@@ -27,6 +27,11 @@
 #include <nx-X11/extensions/renderproto.h>
 #include "picture.h"
 #include "screenint.h"
+#include "regionstr.h"
+#include "miscstruct.h"
+#ifdef NEED_NEWER_XORG_VERSION
+#include "privates.h"
+#endif
 
 #define GlyphFormat1	0
 #define GlyphFormat4	1
@@ -37,10 +42,16 @@
 
 typedef struct _Glyph {
     CARD32 refcnt;
+#ifdef NEED_NEWER_XORG_VERSION
+    PrivateRec *devPrivates;
+#endif
+    unsigned char sha1[20];
     CARD32 size;                /* info + bitmap */
     xGlyphInfo info;
-    /* bits follow */
+    /* per-screen pixmaps follow */
 } GlyphRec, *GlyphPtr;
+
+#define GlyphPicture(glyph) ((PicturePtr *) ((glyph) + 1))
 
 #ifdef NXAGENT_SERVER
 #include "../hw/nxagent/NXglyphstr_GlyphRef.h"
@@ -70,14 +81,27 @@ typedef struct _GlyphHash {
 #else
 typedef struct _GlyphSet {
     CARD32 refcnt;
-    PictFormatPtr format;
     int fdepth;
+    PictFormatPtr format;
     GlyphHashRec hash;
+#ifndef NEED_NEWER_XORG_VERSION
     int maxPrivate;
+#endif
+#ifdef NEED_NEWER_XORG_VERSION
+    PrivateRec *devPrivates;
+#else
     void **devPrivates;
+#endif
 } GlyphSetRec, *GlyphSetPtr;
 #endif                          /* NXAGENT_SERVER */
 
+#ifdef NEED_NEWER_XORG_VERSION
+#define GlyphSetGetPrivate(pGlyphSet,k)					\
+    dixLookupPrivate(&(pGlyphSet)->devPrivates, k)
+
+#define GlyphSetSetPrivate(pGlyphSet,k,ptr)				\
+    dixSetPrivate(&(pGlyphSet)->devPrivates, k, ptr)
+#else
 #define GlyphSetGetPrivate(pGlyphSet,n)					\
 	((n) > (pGlyphSet)->maxPrivate ?				\
 	 (void *) 0 :							\
@@ -87,6 +111,7 @@ typedef struct _GlyphSet {
 	((n) > (pGlyphSet)->maxPrivate ?				\
 	 _GlyphSetSetNewPrivate(pGlyphSet, n, ptr) :			\
 	 ((((pGlyphSet)->devPrivates[n] = (ptr)) != 0) || TRUE))
+#endif
 
 typedef struct _GlyphList {
     INT16 xOff;
@@ -95,10 +120,7 @@ typedef struct _GlyphList {
     PictFormatPtr format;
 } GlyphListRec, *GlyphListPtr;
 
-extern GlyphHashRec globalGlyphs[GlyphFormatNum];
-
-GlyphHashSetPtr FindGlyphHashSet(CARD32 filled);
-
+#ifndef NEED_NEWER_XORG_VERSION
 int
  AllocateGlyphSetPrivateIndex(void);
 
@@ -107,41 +129,44 @@ void
 
 Bool
  _GlyphSetSetNewPrivate(GlyphSetPtr glyphSet, int n, void *ptr);
+#endif
 
-Bool
- GlyphInit(ScreenPtr pScreen);
+extern void
+ GlyphUninit(ScreenPtr pScreen);
 
-GlyphRefPtr
-FindGlyphRef(GlyphHashPtr hash, CARD32 signature, Bool match, GlyphPtr compare);
+#ifdef NXAGENT_SERVER
+extern GlyphRefPtr
+FindGlyphRef(GlyphHashPtr hash, CARD32 signature, Bool match, unsigned char sha1[20]);
+#endif
 
-CARD32
- HashGlyph(GlyphPtr glyph);
+extern GlyphPtr FindGlyphByHash(unsigned char sha1[20], int format);
 
-void
- FreeGlyph(GlyphPtr glyph, int format);
+extern int
+HashGlyph(xGlyphInfo * gi,
+          CARD8 *bits, unsigned long size, unsigned char sha1[20]);
 
-void
+extern void
  AddGlyph(GlyphSetPtr glyphSet, GlyphPtr glyph, Glyph id);
 
-Bool
+extern Bool
  DeleteGlyph(GlyphSetPtr glyphSet, Glyph id);
 
-GlyphPtr FindGlyph(GlyphSetPtr glyphSet, Glyph id);
+extern GlyphPtr FindGlyph(GlyphSetPtr glyphSet, Glyph id);
 
-GlyphPtr AllocateGlyph(xGlyphInfo * gi, int format);
+extern GlyphPtr AllocateGlyph(xGlyphInfo * gi, int format);
 
-Bool
- AllocateGlyphHash(GlyphHashPtr hash, GlyphHashSetPtr hashSet);
-
-Bool
- ResizeGlyphHash(GlyphHashPtr hash, CARD32 change, Bool global);
-
-Bool
+extern Bool
  ResizeGlyphSet(GlyphSetPtr glyphSet, CARD32 change);
 
-GlyphSetPtr AllocateGlyphSet(int fdepth, PictFormatPtr format);
+extern GlyphSetPtr AllocateGlyphSet(int fdepth, PictFormatPtr format);
 
-int
+extern int
  FreeGlyphSet(void *value, XID gid);
+
+#define GLYPH_HAS_GLYPH_PICTURE_ACCESSOR 1 /* used for api compat */
+extern _X_EXPORT PicturePtr
+ GetGlyphPicture(GlyphPtr glyph, ScreenPtr pScreen);
+extern _X_EXPORT void
+ SetGlyphPicture(GlyphPtr glyph, ScreenPtr pScreen, PicturePtr picture);
 
 #endif                          /* _GLYPHSTR_H_ */

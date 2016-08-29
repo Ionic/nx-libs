@@ -53,11 +53,17 @@
 
 typedef struct _GlyphSet {
     CARD32	    refcnt;
-    PictFormatPtr   format;
     int		    fdepth;
+    PictFormatPtr   format;
     GlyphHashRec    hash;
+#ifndef NEED_NEWER_XORG_VERSION
     int             maxPrivate;
+#endif
+#ifdef NEED_NEWER_XORG_VERSION
+    PrivateRec      *devPrivates;
+#else
     void            **devPrivates;
+#endif
     CARD32          remoteID;
 } GlyphSetRec, *GlyphSetPtr;
 

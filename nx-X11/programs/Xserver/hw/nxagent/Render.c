@@ -120,12 +120,6 @@ static void nxagentPrintFormat(XRenderPictFormat *pFormat);
 #endif
 
 /*
- * From NXglyph.c.
- */
-
-extern const CARD8 glyphDepths[];
-
-/*
  * From BitmapUtils.c.
  */
 
@@ -2495,7 +2489,7 @@ void nxagentAddGlyphs(GlyphSetPtr glyphSet, Glyph *gids, xGlyphInfo *gi,
     {
       memcpy(normalizedImages, images, sizeImages);
 
-      if (glyphDepths[glyphSet -> fdepth] == 1 &&
+      if (0 == glyphSet -> fdepth /* equivalent of 1-bit depth */ &&
               nxagentServerOrder() != BitmapBitOrder(nxagentDisplay))
       {
         nxagentBitOrderInvert ((unsigned char *) normalizedImages, sizeImages);
