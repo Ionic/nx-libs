@@ -172,13 +172,13 @@ miCreateAlphaPicture(ScreenPtr pScreen,
                      PicturePtr pDst,
                      PictFormatPtr pPictFormat, CARD16 width, CARD16 height);
 
-Bool
+extern _X_EXPORT Bool
  miInitIndexed(ScreenPtr pScreen, PictFormatPtr pFormat);
 
-void
+extern _X_EXPORT void
  miCloseIndexed(ScreenPtr pScreen, PictFormatPtr pFormat);
 
-void
+extern _X_EXPORT void
 
 miUpdateIndexed(ScreenPtr pScreen,
                 PictFormatPtr pFormat, int ndef, xColorItem * pdef);

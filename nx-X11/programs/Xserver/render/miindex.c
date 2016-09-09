@@ -142,6 +142,7 @@ miBuildRenderColormap(ColormapPtr pColormap, Pixel * pixels, int *nump)
     for (r = 0; r < cube; r++)
         for (g = 0; g < cube; g++)
             for (b = 0; b < cube; b++) {
+                pixel = 0;
                 red = (r * 65535 + (cube - 1) / 2) / (cube - 1);
                 green = (g * 65535 + (cube - 1) / 2) / (cube - 1);
                 blue = (b * 65535 + (cube - 1) / 2) / (cube - 1);
@@ -151,6 +152,7 @@ miBuildRenderColormap(ColormapPtr pColormap, Pixel * pixels, int *nump)
                 used[pixel] = TRUE;
             }
     for (g = 0; g < gray; g++) {
+        pixel = 0;
         red = green = blue = (g * 65535 + (gray - 1) / 2) / (gray - 1);
         if (AllocColor(pColormap, &red, &green, &blue, &pixel, 0) != Success)
             return FALSE;
@@ -251,7 +253,7 @@ miInitIndexed(ScreenPtr pScreen, PictFormatPtr pFormat)
         return FALSE;
 
     pFormat->index.nvalues = num;
-    pFormat->index.pValues = malloc(num * sizeof(xIndexValue));
+    pFormat->index.pValues = xallocarray(num, sizeof(xIndexValue));
     if (!pFormat->index.pValues) {
         free(pIndexed);
         return FALSE;
@@ -260,7 +262,11 @@ miInitIndexed(ScreenPtr pScreen, PictFormatPtr pFormat)
     /*
      * Build mapping from pixel value to ARGB
      */
-    QueryColors(pColormap, num, pixels, rgb);
+    QueryColors(pColormap, num, pixels, rgb
+#ifdef NEED_NEWER_XORG_VERSION
+                , serverClient
+#endif
+    );
     for (i = 0; i < num; i++) {
         p = pixels[i];
         pFormat->index.pValues[i].pixel = p;
@@ -303,14 +309,10 @@ miInitIndexed(ScreenPtr pScreen, PictFormatPtr pFormat)
 void
 miCloseIndexed(ScreenPtr pScreen, PictFormatPtr pFormat)
 {
-    if (pFormat->index.devPrivate) {
-        free(pFormat->index.devPrivate);
-        pFormat->index.devPrivate = 0;
-    }
-    if (pFormat->index.pValues) {
-        free(pFormat->index.pValues);
-        pFormat->index.pValues = 0;
-    }
+    free(pFormat->index.devPrivate);
+    pFormat->index.devPrivate = NULL;
+    free(pFormat->index.pValues);
+    pFormat->index.pValues = NULL;
 }
 
 void
