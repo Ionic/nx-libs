@@ -382,7 +382,7 @@ extern BoxPtr RegionExtents(
 #define REGION_TOP				RegionTop
 #define REGION_END				RegionEnd
 #define REGION_SZOF				RegionSizeof
-#define BitmapToRegion			BitmapToRegion
+#define BITMAP_TO_REGION			BitmapToRegion
 #define REGION_CREATE(pScreen, r, s)		RegionCreate(r,s)
 #define REGION_COPY(pScreen, d, r)		RegionCopy(d, r)
 #define REGION_DESTROY(pScreen, r)		RegionDestroy(r)
