@@ -141,7 +141,6 @@ typedef struct _Picture {
     unsigned int polyEdge:1;
     unsigned int polyMode:1;
     unsigned int freeCompClip:1;
-    unsigned int clientClipType:2;
     unsigned int componentAlpha:1;
     unsigned int repeatType:2;
     unsigned int unused:21;
@@ -150,7 +149,7 @@ typedef struct _Picture {
     DDXPointRec alphaOrigin;
 
     DDXPointRec clipOrigin;
-    void *clientClip;
+    RegionPtr clientClip;
 
     Atom dither;
 

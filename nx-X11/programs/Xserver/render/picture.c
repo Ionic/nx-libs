@@ -704,7 +704,6 @@ SetPictureToDefaults(PicturePtr pPicture)
     pPicture->polyEdge = PolyEdgeSharp;
     pPicture->polyMode = PolyModePrecise;
     pPicture->freeCompClip = FALSE;
-    pPicture->clientClipType = CT_NONE;
     pPicture->componentAlpha = FALSE;
     pPicture->repeatType = RepeatNone;
 
