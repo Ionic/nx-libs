@@ -264,4 +264,6 @@ extern RegionPtr CreateBoundingShape(
 extern RegionPtr CreateClipShape(
     WindowPtr /* pWin */ );
 
+extern _X_EXPORT VisualPtr WindowGetVisual(WindowPtr /*pWin*/);
+
 #endif /* WINDOW_H */

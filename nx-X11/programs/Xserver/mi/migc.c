@@ -91,22 +91,9 @@ void
 miDestroyClip(pGC)
     GCPtr           pGC;
 {
-    if (pGC->clientClipType == CT_NONE)
-	return;
-    else if (pGC->clientClipType == CT_PIXMAP)
-    {
-	(*pGC->pScreen->DestroyPixmap) ((PixmapPtr) (pGC->clientClip));
-    }
-    else
-    {
-	/*
-	 * we know we'll never have a list of rectangles, since ChangeClip
-	 * immediately turns them into a region
-	 */
+    if (pGC->clientClip)
 	RegionDestroy(pGC->clientClip);
-    }
     pGC->clientClip = NULL;
-    pGC->clientClipType = CT_NONE;
 }
 
 void
@@ -120,8 +107,7 @@ miChangeClip(pGC, type, pvalue, nrects)
     if (type == CT_PIXMAP)
     {
 	/* convert the pixmap to a region */
-	pGC->clientClip = (void *) BitmapToRegion(pGC->pScreen,
-							(PixmapPtr) pvalue);
+	pGC->clientClip = BitmapToRegion(pGC->pScreen, (PixmapPtr) pvalue);
 	(*pGC->pScreen->DestroyPixmap) (pvalue);
     }
     else if (type == CT_REGION)
@@ -131,12 +117,9 @@ miChangeClip(pGC, type, pvalue, nrects)
     }
     else if (type != CT_NONE)
     {
-	pGC->clientClip = (void *) RegionFromRects(nrects,
-						      (xRectangle *) pvalue,
-								    type);
+	pGC->clientClip = RegionFromRects(nrects, (xRectangle *) pvalue, type);
 	free(pvalue);
     }
-    pGC->clientClipType = (type != CT_NONE && pGC->clientClip) ? CT_REGION : CT_NONE;
     pGC->stateChanges |= GCClipMask;
 }
 
@@ -144,23 +127,12 @@ void
 miCopyClip(pgcDst, pgcSrc)
     GCPtr           pgcDst, pgcSrc;
 {
-    RegionPtr       prgnNew;
-
-    switch (pgcSrc->clientClipType)
-    {
-      case CT_PIXMAP:
-	((PixmapPtr) pgcSrc->clientClip)->refcnt++;
-	/* Fall through !! */
-      case CT_NONE:
-	(*pgcDst->funcs->ChangeClip) (pgcDst, (int) pgcSrc->clientClipType,
-				   pgcSrc->clientClip, 0);
-	break;
-      case CT_REGION:
-	prgnNew = RegionCreate(NULL, 1);
-	RegionCopy(prgnNew,
-					(RegionPtr) (pgcSrc->clientClip));
-	(*pgcDst->funcs->ChangeClip) (pgcDst, CT_REGION, (void *) prgnNew, 0);
-	break;
+    if (pgcSrc->clientClip) {
+        RegionPtr prgnNew = RegionCreate(NULL, 1);
+	RegionCopy(prgnNew, (RegionPtr) (pgcSrc->clientClip));
+	(*pgcDst->funcs->ChangeClip) (pgcDst, CT_REGION, prgnNew, 0);
+    } else {
+        (*pgcDst->funcs->ChangeClip) (pgcDst, CT_NONE, NULL, 0);
     }
 }
 
@@ -209,7 +181,7 @@ miComputeCompositeClip(pGC, pDrawable)
 	 * regions.  (this wins especially if many clients clip by children
 	 * and have no client clip.)
 	 */
-	if (pGC->clientClipType == CT_NONE)
+	if (!pGC->clientClip)
 	{
 	    if (freeCompClip)
 		RegionDestroy(pGC->pCompositeClip);
@@ -276,7 +248,7 @@ miComputeCompositeClip(pGC, pDrawable)
 	    pGC->pCompositeClip = RegionCreate(&pixbounds, 1);
 	}
 
-	if (pGC->clientClipType == CT_REGION)
+	if (pGC->clientClip)
 	{
 	    if(pDrawable->x || pDrawable->y) {
 	        RegionTranslate(pGC->clientClip,

@@ -812,7 +812,7 @@ int what;
 	    }
 	    break;
 	case GCClipMask:
-	    if ( pGC->clientClipType != CT_NONE) {
+	    if ( pGC->clientClip ) {
 		gcmask |= index;
 		gcval[i++].val = CT_NONE;
 	    }

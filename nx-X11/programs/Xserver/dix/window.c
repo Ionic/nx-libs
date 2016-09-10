@@ -3839,3 +3839,16 @@ DrawLogo(WindowPtr pWin)
 }
 
 #endif
+
+VisualPtr
+WindowGetVisual(WindowPtr pWin)
+{
+    ScreenPtr pScreen = pWin->drawable.pScreen;
+    VisualID vid = wVisual(pWin);
+    int i;
+
+    for (i = 0; i < pScreen->numVisuals; i++)
+        if (pScreen->visuals[i].vid == vid)
+            return &pScreen->visuals[i];
+    return 0;
+}

@@ -97,7 +97,6 @@ void nxagentCopyGC(GCPtr pGCSrc, unsigned long mask, GCPtr pGCDst);
 void nxagentDestroyGC(GCPtr pGC);
 void nxagentChangeClip(GCPtr pGC, int type, void * pValue, int nRects);
 void nxagentDestroyClip(GCPtr pGC);
-void nxagentDestroyClipHelper(GCPtr pGC);
 void nxagentCopyClip(GCPtr pGCDst, GCPtr pGCSrc);
 
 void nxagentDisconnectGC(void * p0, XID x1, void * p2);

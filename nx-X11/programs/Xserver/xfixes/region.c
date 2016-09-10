@@ -224,20 +224,13 @@ ProcXFixesCreateRegionFromGC (ClientPtr client)
 
     SECURITY_VERIFY_GC(pGC, stuff->gc, client, DixReadAccess);
     
-    switch (pGC->clientClipType) {
-    case CT_PIXMAP:
-	pRegion = BitmapToRegion(pGC->pScreen, (PixmapPtr) pGC->clientClip);
-	if (!pRegion)
-	    return BadAlloc;
-	break;
-    case CT_REGION:
+    if (pGC->clientClip) {
 	pClip = (RegionPtr) pGC->clientClip;
 	pRegion = XFixesRegionCopy (pClip);
 	if (!pRegion)
 	    return BadAlloc;
-	break;
-    default:
-	return BadImplementation;   /* assume sane server bits */
+    } else {
+	return BadMatch;
     }
     
     if (!AddResource (stuff->region, RegionResType, (void *) pRegion))

@@ -288,12 +288,11 @@ typedef struct _GC {
     unsigned int 	arcMode : 1;
     unsigned int	subWindowMode : 1;
     unsigned int	graphicsExposures : 1;
-    unsigned int	clientClipType : 2; /* CT_<kind> */
     unsigned int	miTranslate:1; /* should mi things translate? */
     unsigned int	tileIsPixel:1; /* tile is solid pixel */
     unsigned int	fExpose:1;     /* Call exposure handling */
     unsigned int	freeCompClip:1;  /* Free composite clip */
-    unsigned int	unused:14; /* see comment above */
+    unsigned int	unused:16; /* see comment above */
     unsigned long	planemask;
     unsigned long	fgPixel;
     unsigned long	bgPixel;
@@ -307,7 +306,7 @@ typedef struct _GC {
     struct _Font	*font;
     DDXPointRec		clipOrg;
     DDXPointRec		lastWinOrg;	/* position of window last validated */
-    void *		clientClip;
+    RegionPtr		clientClip;
     unsigned long	stateChanges;	/* masked with GC_<kind> */
     unsigned long       serialNumber;
     GCFuncs		*funcs;

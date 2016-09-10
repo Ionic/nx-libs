@@ -626,7 +626,7 @@ void nxagentChangeClip(GCPtr pGC, int type, void * pValue, int nRects)
   {
     case CT_NONE:
     {
-      clipsMatch = (pGC -> clientClipType == None);
+      clipsMatch = (!pGC -> clientClip);
 
       break;
     }
@@ -657,7 +657,7 @@ void nxagentChangeClip(GCPtr pGC, int type, void * pValue, int nRects)
     }
   }
 
-  nxagentDestroyClipHelper(pGC);
+  nxagentDestroyClip(pGC);
 
   #ifdef TEST
   fprintf(stderr, "nxagentChangeClip: Type [%d] regions clipsMatch [%d].\n",
@@ -671,6 +671,7 @@ void nxagentChangeClip(GCPtr pGC, int type, void * pValue, int nRects)
       if (clipsMatch == 0 && nxagentGCTrap == 0)
       {
         XSetClipMask(nxagentDisplay, nxagentGC(pGC), None);
+        pValue = NULL;
       }
 
       break;
@@ -707,13 +708,11 @@ void nxagentChangeClip(GCPtr pGC, int type, void * pValue, int nRects)
                          nxagentPixmap((PixmapPtr)pValue));
       }
 
-      pGC->clientClip = (void *) (*pGC->pScreen->BitmapToRegion)((PixmapPtr) pValue);
+      pGC->clientClip = (*pGC->pScreen->BitmapToRegion)((PixmapPtr) pValue);
 
       nxagentGCPriv(pGC)->pPixmap = (PixmapPtr)pValue;
 
       pValue = pGC->clientClip;
-
-      type = CT_REGION;
 
       break;
     }
@@ -770,19 +769,11 @@ void nxagentChangeClip(GCPtr pGC, int type, void * pValue, int nRects)
     case CT_YXSORTED:
     case CT_YXBANDED:
     {
-      /*
-       * Other parts of the server can only
-       * deal with CT_NONE, CT_PIXMAP and
-       * CT_REGION client clips.
-       */
-
-      pGC->clientClip = (void *) RegionFromRects(nRects,
-                                                  (xRectangle *)pValue, type);
+      /* server clip representation is a region */
+      pGC->clientClip = RegionFromRects(nRects, (xRectangle *)pValue, type);
       free(pValue);
 
       pValue = pGC->clientClip;
-
-      type = CT_REGION;
 
       break;
     }
@@ -792,7 +783,6 @@ void nxagentChangeClip(GCPtr pGC, int type, void * pValue, int nRects)
     }
   }
 
-  pGC->clientClipType = type;
   pGC->clientClip = pValue;
 
   nxagentGCPriv(pGC)->nClipRects = nRects;
@@ -800,90 +790,54 @@ void nxagentChangeClip(GCPtr pGC, int type, void * pValue, int nRects)
 
 void nxagentDestroyClip(GCPtr pGC)
 {
-  miDestroyClip(pGC);
+  if (pGC->clientClip)
+      RegionDestroy(pGC->clientClip);
 
-  if (pGC->clientClipType == CT_PIXMAP)
-  {
-    (*pGC->pScreen->DestroyPixmap)((PixmapPtr) (pGC->clientClip));
+  if (nxagentGCPriv(pGC)->pPixmap != NULL) {
+      nxagentDestroyPixmap(nxagentGCPriv(pGC)->pPixmap);
+      nxagentGCPriv(pGC)->pPixmap = NULL;
   }
 
-  nxagentDestroyClipHelper(pGC);
+  if (pGC->clientClip)
+      if (nxagentGCTrap == 0) {
+          XSetClipMask(nxagentDisplay, nxagentGC(pGC), None);
+      }
 
-  if (nxagentGCTrap == 0)
-  {
-    XSetClipMask(nxagentDisplay, nxagentGC(pGC), None);
+      pGC->clientClip = NULL;
   }
-
-  pGC->clientClipType = CT_NONE;
-  pGC->clientClip = NULL;
 
   nxagentGCPriv(pGC)->nClipRects = 0;
 }
 
-void nxagentDestroyClipHelper(GCPtr pGC)
-{
-  switch (pGC->clientClipType)
-  {
-    default:
-    case CT_NONE:
-      break;
-    case CT_REGION:
-      RegionDestroy(pGC->clientClip);
-      break;
-    case CT_PIXMAP:
-      nxagentDestroyPixmap((PixmapPtr)pGC->clientClip);
-      break;
-  }
-
-  if (nxagentGCPriv(pGC)->pPixmap != NULL)
-  {
-    nxagentDestroyPixmap(nxagentGCPriv(pGC)->pPixmap);
-    nxagentGCPriv(pGC)->pPixmap = NULL;
-  }
-}
-
 void nxagentCopyClip(GCPtr pGCDst, GCPtr pGCSrc)
 {
-  RegionPtr pRgn;
-
   #ifdef TEST
   fprintf(stderr, "nxagentCopyClip: Going to copy clip from GC [%p] to GC [%p]\n",
               (void *) pGCDst, (void *) pGCSrc);
   #endif
 
-  switch (pGCSrc->clientClipType)
-  {
-    case CT_REGION:
+  if (pGCSrc->clientClip) {
       if (nxagentGCPriv(pGCSrc)->pPixmap == NULL)
       {
-        pRgn = RegionCreate(NULL, 1);
+        RegionPtr pRgn = RegionCreate(NULL, 1);
         RegionCopy(pRgn, pGCSrc->clientClip);
         nxagentChangeClip(pGCDst, CT_REGION, pRgn, 0);
       }
       else
       {
+        /*
+         * FIXME: I don't like that, incrementing the refcount and later
+         *        converting the pixmap to a region sounds like a safe way to
+         *        create a memory leak.
+         *        Sadly, NX code uses (virtual) pixmaps quite a lot.
+         */
         nxagentGCPriv(pGCSrc)->pPixmap->refcnt++;
 
         nxagentChangeClip(pGCDst, CT_PIXMAP, nxagentGCPriv(pGCSrc)->pPixmap, 0);
       }
       break;
-    case CT_PIXMAP:
-
-      #ifdef WARNING
-      fprintf(stderr, "nxagentCopyClip: WARNING! Not incrementing counter for virtual pixmap at [%p].\n",
-                  (void *) nxagentVirtualPixmap((PixmapPtr) pGCSrc->clientClip));
-      #endif
-
-      ((PixmapPtr) pGCSrc->clientClip)->refcnt++;
-
-      nxagentChangeClip(pGCDst, CT_PIXMAP, pGCSrc->clientClip, 0);
-
-      break;
-
-    case CT_NONE:
+  } else {
       nxagentDestroyClip(pGCDst);
-      break;
-
   }
 }
 

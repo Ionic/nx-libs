@@ -648,7 +648,6 @@ CreateGC(DrawablePtr pDrawable, BITS32 mask, XID *pval, int *pStatus)
     pGC->graphicsExposures = TRUE;
     pGC->clipOrg.x = 0;
     pGC->clipOrg.y = 0;
-    pGC->clientClipType = CT_NONE;
     pGC->clientClip = (void *)NULL;
     pGC->numInDashList = 2;
     pGC->dash = DefaultDash;
@@ -967,7 +966,6 @@ CreateScratchGC(ScreenPtr pScreen, unsigned depth)
     pGC->graphicsExposures = TRUE;
     pGC->clipOrg.x = 0;
     pGC->clipOrg.y = 0;
-    pGC->clientClipType = CT_NONE;
     pGC->dashOffset = 0;
     pGC->numInDashList = 2;
     pGC->dash = DefaultDash;
@@ -1251,7 +1249,7 @@ GetScratchGC(register unsigned depth, register ScreenPtr pScreen)
 	    pGC->graphicsExposures = FALSE;
 	    pGC->clipOrg.x = 0;
 	    pGC->clipOrg.y = 0;
-	    if (pGC->clientClipType != CT_NONE)
+	    if (pGC->clientClip)
 		(*pGC->funcs->ChangeClip) (pGC, CT_NONE, NULL, 0);
 	    pGC->stateChanges = (1 << (GCLastBit+1)) - 1;
 	    return pGC;

@@ -1846,7 +1846,7 @@ void nxagentCompositeRects(CARD8 op, PicturePtr pDst, xRenderColor *color,
   {
     rectRegion = RegionFromRects(nRect, rects, CT_REGION);
 
-    if (pDst -> clientClipType != CT_NONE)
+    if (pDst -> clientClip)
     {
       RegionRec tmpRegion;
 

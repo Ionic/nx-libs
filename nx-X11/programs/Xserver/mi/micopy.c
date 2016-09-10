@@ -38,7 +38,7 @@ miCopyRegion (DrawablePtr   pSrcDrawable,
 	      RegionPtr	    pDstRegion,
 	      int	    dx,
 	      int	    dy,
-	      fbCopyProc    copyProc,
+	      miCopyProc    copyProc,
 	      Pixel	    bitPlane,
 	      void	    *closure)
 {
@@ -195,7 +195,7 @@ miDoCopy (DrawablePtr	pSrcDrawable,
     /* Compute source clip region */
     if (pSrcDrawable->type == DRAWABLE_PIXMAP)
     {
-	if ((pSrcDrawable == pDstDrawable) && (pGC->clientClipType == CT_NONE))
+	if ((pSrcDrawable == pDstDrawable) && (!pGC->clientClip))
 	    prgnSrcClip = miGetCompositeClip(pGC);
 	else
 	    fastSrc = TRUE;
@@ -218,8 +218,7 @@ miDoCopy (DrawablePtr	pSrcDrawable,
 		 */
 		fastSrc = TRUE;
 	    }
-	    else if ((pSrcDrawable == pDstDrawable) &&
-		     (pGC->clientClipType == CT_NONE))
+	    else if ((pSrcDrawable == pDstDrawable) && (!pGC->clientClip))
 	    {
 		prgnSrcClip = miGetCompositeClip(pGC);
 	    }
