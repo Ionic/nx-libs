@@ -143,9 +143,6 @@ Bool nxagentCreateGC(GCPtr pGC)
 {
   FbGCPrivPtr pPriv;
 
-  pGC->clientClipType = CT_NONE;
-  pGC->clientClip = NULL;
-
   pGC->funcs = &nxagentFuncs;
   pGC->ops = &nxagentOps;
 

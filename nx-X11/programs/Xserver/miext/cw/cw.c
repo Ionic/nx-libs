@@ -329,7 +329,6 @@ cwCreateGC(GCPtr pGC)
     ScreenPtr	pScreen = pGC->pScreen;
     Bool	ret;
 
-    bzero(pPriv, sizeof(cwGCRec));
     SCREEN_PROLOGUE(pScreen, CreateGC);
 
     if ( (ret = (*pScreen->CreateGC)(pGC)) )
