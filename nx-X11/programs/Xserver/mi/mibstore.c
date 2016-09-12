@@ -1514,7 +1514,7 @@ miBSCopyArea (pSrc, pDst, pGC, srcx, srcy, w, h, dstx, dsty)
 	 * from the backing store saved region.  So, copying
 	 * *to* the backing store is always safe
 	 */
-	if (pGC->clientClipType != CT_PIXMAP)
+	if (pGC->clientClip)
 	{
 	    /*
 	     * adjust srcx, srcy, w, h, dstx, dsty to be clipped to
@@ -1623,7 +1623,7 @@ miBSCopyPlane (pSrc, pDst, pGC, srcx, srcy, w, h, dstx, dsty, plane)
 	 * from the backing store saved region.  So, copying
 	 * *to* the backing store is always safe
 	 */
-	if (pGC->clientClipType != CT_PIXMAP)
+	if (pGC->clientClip)
 	{
 	    /*
 	     * adjust srcx, srcy, w, h, dstx, dsty to be clipped to
@@ -3404,8 +3404,7 @@ miBSValidateGC (pGC, stateChanges, pDrawable)
 	if (RegionNotEmpty(&pWindowPriv->SavedRegion))
  	{
 	    backingCompositeClip = RegionCreate(NULL, 1);
-	    if ((pGC->clientClipType == CT_NONE) || 
-		(pGC->clientClipType == CT_PIXMAP))
+	    if (!pGC->clientClip)
 	    {
 		RegionCopy(backingCompositeClip,
 					     &pWindowPriv->SavedRegion); 
@@ -3530,6 +3529,10 @@ miBSValidateGC (pGC, stateChanges, pDrawable)
     {
 	XID vals[2];
 
+        /*
+         * Drop this part... and hope that nothing goes wrong.
+         */
+#if 0
 	if (pGC->clientClipType == CT_PIXMAP)
 	{
 	    (*pBackingGC->funcs->CopyClip)(pBackingGC, pGC);
@@ -3543,6 +3546,7 @@ miBSValidateGC (pGC, stateChanges, pDrawable)
 	    RegionDestroy(backingCompositeClip);
 	}
 	else
+#endif
 	{
 	    vals[0] = -pWindowPriv->x;
 	    vals[1] = -pWindowPriv->y;
