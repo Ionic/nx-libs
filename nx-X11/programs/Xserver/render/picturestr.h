@@ -26,9 +26,12 @@
 #ifndef _PICTURESTR_H_
 #define _PICTURESTR_H_
 
-#include "glyphstr.h"
 #include "scrnintstr.h"
+#include "glyphstr.h"
 #include "resource.h"
+#ifdef NEED_NEWER_XORG_VERSION
+#include "privates.h"
+#endif
 
 typedef struct _DirectFormat {
     CARD16 red, redMask;
@@ -57,6 +60,7 @@ typedef struct _PictFormat {
 typedef struct pixman_vector PictVector, *PictVectorPtr;
 typedef struct pixman_transform PictTransform, *PictTransformPtr;
 
+#define pict_f_vector pixman_f_vector
 #define pict_f_transform pixman_f_transform
 
 #define PICT_GRADIENT_STOPTABLE_SIZE 1024
@@ -133,8 +137,6 @@ typedef struct _Picture {
     CARD32 format;              /* PICT_FORMAT */
     int refcnt;
     CARD32 id;
-    PicturePtr pNext;           /* chain on same drawable */
-
     unsigned int repeat:1;
     unsigned int graphicsExposures:1;
     unsigned int subWindowMode:1;
@@ -143,7 +145,10 @@ typedef struct _Picture {
     unsigned int freeCompClip:1;
     unsigned int componentAlpha:1;
     unsigned int repeatType:2;
-    unsigned int unused:21;
+    int filter:3;
+    unsigned int unused:18;
+
+    PicturePtr pNext;           /* chain on same drawable */
 
     PicturePtr alphaMap;
     DDXPointRec alphaOrigin;
@@ -162,10 +167,9 @@ typedef struct _Picture {
 
     PictTransform *transform;
 
-    int filter;
+    SourcePictPtr pSourcePict;
     xFixed *filter_params;
     int filter_nparams;
-    SourcePictPtr pSourcePict;
 } PictureRec;
 
 typedef Bool (*PictFilterValidateParamsProcPtr) (ScreenPtr pScreen, int id,
@@ -186,6 +190,7 @@ typedef struct {
 #define PictFilterBest		4
 
 #define PictFilterConvolution	5
+/* if you add an 8th filter, expand the filter bitfield above */
 
 typedef struct {
     char *alias;
@@ -283,6 +288,10 @@ typedef void (*AddTrianglesProcPtr) (PicturePtr pPicture,
                                      INT16 xOff,
                                      INT16 yOff, int ntri, xTriangle * tris);
 
+typedef Bool (*RealizeGlyphProcPtr) (ScreenPtr pScreen, GlyphPtr glyph);
+
+typedef void (*UnrealizeGlyphProcPtr) (ScreenPtr pScreen, GlyphPtr glyph);
+
 typedef struct _PictureScreen {
     int totalPictureSize;
     unsigned int *PicturePrivateSizes;
@@ -301,7 +310,7 @@ typedef struct _PictureScreen {
     ValidatePictureProcPtr ValidatePicture;
 
     CompositeProcPtr Composite;
-    GlyphsProcPtr Glyphs;
+    GlyphsProcPtr Glyphs;       /* unused */
     CompositeRectsProcPtr CompositeRects;
 
     DestroyWindowProcPtr DestroyWindow;
@@ -332,8 +341,6 @@ typedef struct _PictureScreen {
 
     TrapezoidsProcPtr Trapezoids;
     TrianglesProcPtr Triangles;
-    TriStripProcPtr TriStrip;
-    TriFanProcPtr TriFan;
 
     RasterizeTrapezoidProcPtr RasterizeTrapezoid;
 
@@ -341,6 +348,12 @@ typedef struct _PictureScreen {
 
     AddTrapsProcPtr AddTraps;
 
+    RealizeGlyphProcPtr RealizeGlyph;
+    UnrealizeGlyphProcPtr UnrealizeGlyph;
+
+#define PICTURE_SCREEN_VERSION 2
+    TriStripProcPtr TriStrip;
+    TriFanProcPtr TriFan;
 } PictureScreenRec, *PictureScreenPtr;
 
 extern int PictureScreenPrivateIndex;
@@ -446,11 +459,6 @@ void
  SetPictureToDefaults(PicturePtr pPicture);
 
 PicturePtr AllocatePicture(ScreenPtr pScreen);
-
-#if 0
-Bool
- miPictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats);
-#endif
 
 PicturePtr
 CreatePicture(Picture pid,

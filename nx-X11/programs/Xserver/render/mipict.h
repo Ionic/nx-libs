@@ -46,39 +46,16 @@ typedef struct _miIndexed {
 
 #define miIndexToEntY24(mif,rgb24) ((mif)->ent[CvtR8G8B8toY15(rgb24)])
 
-int
+extern _X_EXPORT int
  miCreatePicture(PicturePtr pPicture);
 
-void
+extern _X_EXPORT void
  miDestroyPicture(PicturePtr pPicture);
 
-void
- miDestroyPictureClip(PicturePtr pPicture);
+extern _X_EXPORT void
+ miCompositeSourceValidate(PicturePtr pPicture);
 
-int
- miChangePictureClip(PicturePtr pPicture, int type, void *value, int n);
-
-void
- miChangePicture(PicturePtr pPicture, Mask mask);
-
-void
- miValidatePicture(PicturePtr pPicture, Mask mask);
-
-int
- miChangePictureTransform(PicturePtr pPicture, PictTransform * transform);
-
-int
-
-miChangePictureFilter(PicturePtr pPicture,
-                      int filter, xFixed * params, int nparams);
-
-Bool
-
-miClipPicture(RegionPtr pRegion,
-              PicturePtr pPicture,
-              INT16 xReg, INT16 yReg, INT16 xPict, INT16 yPict);
-
-Bool
+extern _X_EXPORT Bool
 
 miComputeCompositeRegion(RegionPtr pRegion,
                          PicturePtr pSrc,
@@ -90,7 +67,7 @@ miComputeCompositeRegion(RegionPtr pRegion,
                          INT16 yMask,
                          INT16 xDst, INT16 yDst, CARD16 width, CARD16 height);
 
-Bool
+extern _X_EXPORT Bool
  miPictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats);
 
 extern _X_EXPORT Bool
@@ -108,13 +85,13 @@ miGlyphs(CARD8 op,
          INT16 xSrc,
          INT16 ySrc, int nlist, GlyphListPtr list, GlyphPtr * glyphs);
 
-void
+extern _X_EXPORT void
  miRenderColorToPixel(PictFormatPtr pPict, xRenderColor * color, CARD32 *pixel);
 
-void
+extern _X_EXPORT void
  miRenderPixelToColor(PictFormatPtr pPict, CARD32 pixel, xRenderColor * color);
 
-Bool
+extern _X_EXPORT Bool
  miIsSolidAlpha(PicturePtr pSrc);
 
 void
@@ -150,22 +127,6 @@ miTriangles(CARD8 op,
             PicturePtr pDst,
             PictFormatPtr maskFormat,
             INT16 xSrc, INT16 ySrc, int ntri, xTriangle * tris);
-
-void
-
-miTriStrip(CARD8 op,
-           PicturePtr pSrc,
-           PicturePtr pDst,
-           PictFormatPtr maskFormat,
-           INT16 xSrc, INT16 ySrc, int npoint, xPointFixed * points);
-
-void
-
-miTriFan(CARD8 op,
-         PicturePtr pSrc,
-         PicturePtr pDst,
-         PictFormatPtr maskFormat,
-         INT16 xSrc, INT16 ySrc, int npoint, xPointFixed * points);
 
 PicturePtr
 miCreateAlphaPicture(ScreenPtr pScreen,

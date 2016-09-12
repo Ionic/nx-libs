@@ -32,10 +32,6 @@
 #include "picturestr.h"
 #include "mipict.h"
 
-#ifndef __GNUC__
-#define __inline
-#endif
-
 int
 miCreatePicture(PicturePtr pPicture)
 {
@@ -49,7 +45,7 @@ miDestroyPicture(PicturePtr pPicture)
         RegionDestroy(pPicture->pCompositeClip);
 }
 
-void
+static void
 miDestroyPictureClip(PicturePtr pPicture)
 {
     if (pPicture->clientClip)
@@ -57,7 +53,7 @@ miDestroyPictureClip(PicturePtr pPicture)
     pPicture->clientClip = NULL;
 }
 
-int
+static int
 miChangePictureClip(PicturePtr pPicture, int type, void *value, int n)
 {
     ScreenPtr pScreen = pPicture->pDrawable->pScreen;
@@ -91,13 +87,13 @@ miChangePictureClip(PicturePtr pPicture, int type, void *value, int n)
     return Success;
 }
 
-void
+static void
 miChangePicture(PicturePtr pPicture, Mask mask)
 {
     return;
 }
 
-void
+static void
 miValidatePicture(PicturePtr pPicture, Mask mask)
 {
     DrawablePtr pDrawable = pPicture->pDrawable;
@@ -214,13 +210,13 @@ miValidatePicture(PicturePtr pPicture, Mask mask)
     }
 }
 
-int
+static int
 miChangePictureTransform(PicturePtr pPicture, PictTransform * transform)
 {
     return Success;
 }
 
-int
+static int
 miChangePictureFilter(PicturePtr pPicture,
                       int filter, xFixed * params, int nparams)
 {
@@ -229,12 +225,14 @@ miChangePictureFilter(PicturePtr pPicture,
 
 #define BOUND(v)	(INT16) ((v) < MINSHORT ? MINSHORT : (v) > MAXSHORT ? MAXSHORT : (v))
 
-static __inline Bool
-miClipPictureReg(RegionPtr pRegion, RegionPtr pClip, int dx, int dy)
+static inline pixman_bool_t
+miClipPictureReg(pixman_region16_t * pRegion,
+                 pixman_region16_t * pClip, int dx, int dy)
 {
-    if (RegionNumRects(pRegion) == 1 && RegionNumRects(pClip) == 1) {
-        BoxPtr pRbox = RegionRects(pRegion);
-        BoxPtr pCbox = RegionRects(pClip);
+    if (pixman_region_n_rects(pRegion) == 1 &&
+        pixman_region_n_rects(pClip) == 1) {
+        pixman_box16_t *pRbox = pixman_region_rectangles(pRegion, NULL);
+        pixman_box16_t *pCbox = pixman_region_rectangles(pClip, NULL);
         int v;
 
         if (pRbox->x1 < (v = pCbox->x1 + dx))
@@ -246,50 +244,46 @@ miClipPictureReg(RegionPtr pRegion, RegionPtr pClip, int dx, int dy)
         if (pRbox->y2 > (v = pCbox->y2 + dy))
             pRbox->y2 = BOUND(v);
         if (pRbox->x1 >= pRbox->x2 || pRbox->y1 >= pRbox->y2) {
-            RegionEmpty(pRegion);
+            pixman_region_init(pRegion);
         }
     }
-    else if (!RegionNotEmpty(pClip))
+    else if (!pixman_region_not_empty(pClip))
         return FALSE;
     else {
         if (dx || dy)
-            RegionTranslate(pRegion, -dx, -dy);
-        if (!RegionIntersect(pRegion, pRegion, pClip))
+            pixman_region_translate(pRegion, -dx, -dy);
+        if (!pixman_region_intersect(pRegion, pRegion, pClip))
             return FALSE;
         if (dx || dy)
-            RegionTranslate(pRegion, dx, dy);
+            pixman_region_translate(pRegion, dx, dy);
     }
-    return RegionNotEmpty(pRegion);
+    return pixman_region_not_empty(pRegion);
 }
 
-static __inline Bool
+static inline Bool
 miClipPictureSrc(RegionPtr pRegion, PicturePtr pPicture, int dx, int dy)
 {
-    /* XXX what to do with clipping from transformed pictures? */
-    if (pPicture->transform || !pPicture->pDrawable)
-        return TRUE;
-    if (pPicture->repeat) {
-        if (pPicture->clientClip) {
-            RegionTranslate(pRegion,
-                            dx - pPicture->clipOrigin.x,
-                            dy - pPicture->clipOrigin.y);
-            if (!RegionIntersect(pRegion, pRegion,
-                                 (RegionPtr) pPicture->clientClip))
-                return FALSE;
-            RegionTranslate(pRegion,
-                            -(dx - pPicture->clipOrigin.x),
-                            -(dy - pPicture->clipOrigin.y));
-        }
-        return TRUE;
+    if (pPicture->clientClip) {
+        Bool result;
+
+        pixman_region_translate(pPicture->clientClip,
+                                pPicture->clipOrigin.x + dx,
+                                pPicture->clipOrigin.y + dy);
+
+        result = RegionIntersect(pRegion, pRegion, pPicture->clientClip);
+
+        pixman_region_translate(pPicture->clientClip,
+                                -(pPicture->clipOrigin.x + dx),
+                                -(pPicture->clipOrigin.y + dy));
+
+        if (!result)
+            return FALSE;
     }
-    else {
-        return miClipPictureReg(pRegion, pPicture->pCompositeClip, dx, dy);
-    }
+    return TRUE;
 }
 
 static void
-miCompositeSourceValidate(PicturePtr pPicture,
-                          INT16 x, INT16 y, CARD16 width, CARD16 height)
+SourceValidateOnePicture(PicturePtr pPicture)
 {
     DrawablePtr pDrawable = pPicture->pDrawable;
     ScreenPtr pScreen;
@@ -300,47 +294,20 @@ miCompositeSourceValidate(PicturePtr pPicture,
     pScreen = pDrawable->pScreen;
 
     if (pScreen->SourceValidate) {
-        x -= pPicture->pDrawable->x;
-        y -= pPicture->pDrawable->y;
-        if (pPicture->transform) {
-            xPoint points[4];
-            int i;
-            int xmin, ymin, xmax, ymax;
-
-#define VectorSet(i,_x,_y) { points[i].x = _x; points[i].y = _y; }
-            VectorSet(0, x, y);
-            VectorSet(1, x + width, y);
-            VectorSet(2, x, y + height);
-            VectorSet(3, x + width, y + height);
-            xmin = ymin = 32767;
-            xmax = ymax = -32737;
-            for (i = 0; i < 4; i++) {
-                PictVector t;
-
-                t.vector[0] = IntToxFixed(points[i].x);
-                t.vector[1] = IntToxFixed(points[i].y);
-                t.vector[2] = xFixed1;
-                if (PictureTransformPoint(pPicture->transform, &t)) {
-                    int tx = xFixedToInt(t.vector[0]);
-                    int ty = xFixedToInt(t.vector[1]);
-
-                    if (tx < xmin)
-                        xmin = tx;
-                    if (tx > xmax)
-                        xmax = tx;
-                    if (ty < ymin)
-                        ymin = ty;
-                    if (ty > ymax)
-                        ymax = ty;
-                }
-            }
-            x = xmin;
-            y = ymin;
-            width = xmax - xmin;
-            height = ymax - ymin;
-        }
-        (*pScreen->SourceValidate) (pDrawable, x, y, width, height);
+        pScreen->SourceValidate(pDrawable, 0, 0, pDrawable->width, pDrawable->height
+#ifdef NEED_NEWER_XORG_VERSION
+                                , pPicture->subWindowMode
+#endif
+        );
     }
+}
+
+void
+miCompositeSourceValidate(PicturePtr pPicture)
+{
+    SourceValidateOnePicture(pPicture);
+    if (pPicture->alphaMap)
+        SourceValidateOnePicture(pPicture->alphaMap);
 }
 
 /*
@@ -371,52 +338,54 @@ miComputeCompositeRegion(RegionPtr pRegion,
     /* Check for empty operation */
     if (pRegion->extents.x1 >= pRegion->extents.x2 ||
         pRegion->extents.y1 >= pRegion->extents.y2) {
-        RegionEmpty(pRegion);
+        pixman_region_init(pRegion);
         return FALSE;
     }
     /* clip against dst */
     if (!miClipPictureReg(pRegion, pDst->pCompositeClip, 0, 0)) {
-        RegionUninit(pRegion);
+        pixman_region_fini(pRegion);
         return FALSE;
     }
     if (pDst->alphaMap) {
         if (!miClipPictureReg(pRegion, pDst->alphaMap->pCompositeClip,
                               -pDst->alphaOrigin.x, -pDst->alphaOrigin.y)) {
-            RegionUninit(pRegion);
+            pixman_region_fini(pRegion);
             return FALSE;
         }
     }
     /* clip against src */
     if (!miClipPictureSrc(pRegion, pSrc, xDst - xSrc, yDst - ySrc)) {
-        RegionUninit(pRegion);
+        pixman_region_fini(pRegion);
         return FALSE;
     }
     if (pSrc->alphaMap) {
         if (!miClipPictureSrc(pRegion, pSrc->alphaMap,
-                              xDst - (xSrc + pSrc->alphaOrigin.x),
-                              yDst - (ySrc + pSrc->alphaOrigin.y))) {
-            RegionUninit(pRegion);
+                              xDst - (xSrc - pSrc->alphaOrigin.x),
+                              yDst - (ySrc - pSrc->alphaOrigin.y))) {
+            pixman_region_fini(pRegion);
             return FALSE;
         }
     }
     /* clip against mask */
     if (pMask) {
         if (!miClipPictureSrc(pRegion, pMask, xDst - xMask, yDst - yMask)) {
-            RegionUninit(pRegion);
+            pixman_region_fini(pRegion);
             return FALSE;
         }
         if (pMask->alphaMap) {
             if (!miClipPictureSrc(pRegion, pMask->alphaMap,
-                                  xDst - (xMask + pMask->alphaOrigin.x),
-                                  yDst - (yMask + pMask->alphaOrigin.y))) {
-                RegionUninit(pRegion);
+                                  xDst - (xMask - pMask->alphaOrigin.x),
+                                  yDst - (yMask - pMask->alphaOrigin.y))) {
+                pixman_region_fini(pRegion);
                 return FALSE;
             }
         }
     }
-    miCompositeSourceValidate(pSrc, xSrc, ySrc, width, height);
+
+    miCompositeSourceValidate(pSrc);
     if (pMask)
-        miCompositeSourceValidate(pMask, xMask, yMask, width, height);
+        miCompositeSourceValidate(pMask);
+
     return TRUE;
 }
 
@@ -531,6 +500,56 @@ miRenderPixelToColor(PictFormatPtr format, CARD32 pixel, xRenderColor * color)
     }
 }
 
+static void
+miTriStrip(CARD8 op,
+           PicturePtr pSrc,
+           PicturePtr pDst,
+           PictFormatPtr maskFormat,
+           INT16 xSrc, INT16 ySrc, int npoints, xPointFixed * points)
+{
+    xTriangle *tris, *tri;
+    int ntri;
+
+    ntri = npoints - 2;
+    tris = xallocarray(ntri, sizeof(xTriangle));
+    if (!tris)
+        return;
+
+    for (tri = tris; npoints >= 3; npoints--, points++, tri++) {
+        tri->p1 = points[0];
+        tri->p2 = points[1];
+        tri->p3 = points[2];
+    }
+    CompositeTriangles(op, pSrc, pDst, maskFormat, xSrc, ySrc, ntri, tris);
+    free(tris);
+}
+
+static void
+miTriFan(CARD8 op,
+         PicturePtr pSrc,
+         PicturePtr pDst,
+         PictFormatPtr maskFormat,
+         INT16 xSrc, INT16 ySrc, int npoints, xPointFixed * points)
+{
+    xTriangle *tris, *tri;
+    xPointFixed *first;
+    int ntri;
+
+    ntri = npoints - 2;
+    tris = xallocarray(ntri, sizeof(xTriangle));
+    if (!tris)
+        return;
+
+    first = points++;
+    for (tri = tris; npoints >= 3; npoints--, points++, tri++) {
+        tri->p1 = *first;
+        tri->p2 = points[0];
+        tri->p3 = points[1];
+    }
+    CompositeTriangles(op, pSrc, pDst, maskFormat, xSrc, ySrc, ntri, tris);
+    free(tris);
+}
+
 Bool
 miPictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats)
 {
@@ -550,19 +569,22 @@ miPictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats)
     ps->UpdateIndexed = miUpdateIndexed;
     ps->ChangePictureTransform = miChangePictureTransform;
     ps->ChangePictureFilter = miChangePictureFilter;
+    ps->RealizeGlyph = miRealizeGlyph;
+    ps->UnrealizeGlyph = miUnrealizeGlyph;
 
     /* MI rendering routines */
     ps->Composite = 0;          /* requires DDX support */
     ps->Glyphs = miGlyphs;
     ps->CompositeRects = miCompositeRects;
-    ps->Trapezoids = miTrapezoids;
-    ps->Triangles = miTriangles;
-    ps->TriStrip = miTriStrip;
-    ps->TriFan = miTriFan;
+    ps->Trapezoids = 0;
+    ps->Triangles = 0;
 
     ps->RasterizeTrapezoid = 0; /* requires DDX support */
     ps->AddTraps = 0;           /* requires DDX support */
     ps->AddTriangles = 0;       /* requires DDX support */
+
+    ps->TriStrip = miTriStrip;  /* converts call to CompositeTriangles */
+    ps->TriFan = miTriFan;
 
     return TRUE;
 }
