@@ -1595,7 +1595,7 @@ RegionPtr nxagentCreateRegion(DrawablePtr pDrawable, GCPtr pGC, int x, int y,
 
   if (RegionNil(pRegion) == 0 &&
           pGC != NULL && pGC -> clientClip != NULL &&
-              pGC -> clientClipType == CT_REGION)
+              pGC -> clientClip != NULL)
   {
     RegionRec clipRegion;
 

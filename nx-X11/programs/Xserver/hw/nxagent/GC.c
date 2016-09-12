@@ -795,7 +795,7 @@ void nxagentDestroyClip(GCPtr pGC)
       nxagentGCPriv(pGC)->pPixmap = NULL;
   }
 
-  if (pGC->clientClip)
+  if (pGC->clientClip) {
       if (nxagentGCTrap == 0) {
           XSetClipMask(nxagentDisplay, nxagentGC(pGC), None);
       }
@@ -832,7 +832,6 @@ void nxagentCopyClip(GCPtr pGCDst, GCPtr pGCSrc)
 
         nxagentChangeClip(pGCDst, CT_PIXMAP, nxagentGCPriv(pGCSrc)->pPixmap, 0);
       }
-      break;
   } else {
       nxagentDestroyClip(pGCDst);
   }
@@ -1100,7 +1099,7 @@ static void nxagentReconnectGC(void *param0, XID param1, void * param2)
   }
 
   nxagentReconnectClip(pGC,
-                       pGC -> clientClipType,
+                       (pGC -> clientClip != NULL) ? CT_REGION : CT_NONE,
                        pGC -> clientClip, nxagentGCPriv(pGC) -> nClipRects);
 
   #ifdef DEBUG
@@ -1282,8 +1281,6 @@ static void nxagentReconnectClip(GCPtr pGC, int type, void * pValue, int nRects)
 
       pValue = pGC->clientClip;
 
-      type = CT_REGION;
-
       break;
 
     case CT_UNSORTED:
@@ -1330,12 +1327,10 @@ static void nxagentReconnectClip(GCPtr pGC, int type, void * pValue, int nRects)
                                                   (xRectangle *)pValue, type);
       free(pValue);
       pValue = pGC->clientClip;
-      type = CT_REGION;
 
       break;
     }
 
-  pGC->clientClipType = type;
   pGC->clientClip = pValue;
 
  nxagentGCPriv(pGC)->nClipRects = nRects;

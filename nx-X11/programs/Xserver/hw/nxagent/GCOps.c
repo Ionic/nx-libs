@@ -377,18 +377,8 @@ FIXME: The popup could be synchronized with one
                     pClipRegion -> extents.x2, pClipRegion -> extents.y2);
     #endif
 
-    if (pGC -> clientClip == NULL || pGC -> clientClipType != CT_REGION)
+    if (pGC -> clientClip == NULL)
     {
-      #ifdef WARNING
-
-      if (pGC -> clientClipType != CT_NONE)
-      {
-        fprintf(stderr, "nxagentDeferCopyArea: WARNING! pGC [%p] has a clip type [%d].\n",
-                    (void *) pGC, pGC -> clientClipType);
-      }
-
-      #endif
-
       RegionTranslate(pClipRegion, dstx - srcx, dsty - srcy);
     }
     else
