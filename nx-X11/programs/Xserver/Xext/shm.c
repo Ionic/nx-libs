@@ -506,7 +506,7 @@ miShmPutImage(dst, pGC, depth, format, w, h, sx, sy, sw, sh, dx, dy, data)
     if (!putGC)
 	return;
     pmap = (*dst->pScreen->CreatePixmap)(dst->pScreen, sw, sh, depth,
-                                        CREATE_PIXMAP_USAGE_SCRATCH);
+                                         CREATE_PIXMAP_USAGE_SCRATCH);
     if (!pmap)
     {
 	FreeScratchGC(putGC);

@@ -267,7 +267,7 @@ miDCRealize (
 	pPriv->maskBits = 0;
 	pPixmap = (*pScreen->CreatePixmap) (pScreen, pCursor->bits->width,
 					    pCursor->bits->height, 32,
-					    CREATE_PIXMAP_USAGE_SCRATCH);
+                                            CREATE_PIXMAP_USAGE_SCRATCH);
 	if (!pPixmap)
 	{
 	    free ((void *) pPriv);

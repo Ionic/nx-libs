@@ -126,7 +126,7 @@ miPolyGlyphBlt(pDrawable, pGC, x, y, nglyph, ppci, pglyphBase)
 
     pPixmap = (*pDrawable->pScreen->CreatePixmap)(pDrawable->pScreen,
 						  width, height, 1,
-						  CREATE_PIXMAP_USAGE_SCRATCH);
+                                                  CREATE_PIXMAP_USAGE_SCRATCH);
     if (!pPixmap)
 	return;
 

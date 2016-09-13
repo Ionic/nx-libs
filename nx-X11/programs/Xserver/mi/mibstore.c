@@ -494,7 +494,7 @@ miBSGetImage (pDrawable, sx, sy, w, h, format, planemask, pdstLine)
 		    int	x, y;
 
 		    pPixmap = (*pScreen->CreatePixmap) (pScreen, w, h, depth,
-		                                       CREATE_PIXMAP_USAGE_SCRATCH);
+                                                        CREATE_PIXMAP_USAGE_SCRATCH);
 		    if (!pPixmap)
 			goto punt;
 		    pGC = GetScratchGC (depth, pScreen);

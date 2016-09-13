@@ -1561,7 +1561,8 @@ fbCreatePixmapBpp (ScreenPtr pScreen, int width, int height, int depth, int bpp,
                    unsigned usage_hint);
 
 PixmapPtr
-fbCreatePixmap (ScreenPtr pScreen, int width, int height, int depth, unsigned usage_hint);
+fbCreatePixmap (ScreenPtr pScreen, int width, int height, int depth,
+                unsigned usage_hint);
 
 Bool
 fbDestroyPixmap (PixmapPtr pPixmap);
