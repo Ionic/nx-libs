@@ -5,13 +5,11 @@
 #if (!(defined(NXAgentServer) && NXAgentServer))
 NXAGENT_SKIP_SRCS =             \
                     glyph.c     \
-                    mitrap.c    \
                     picture.c   \
                     render.c    \
                     $(NULL)
 NXAGENT_SKIP_OBJS =             \
                     glyph.o     \
-                    mitrap.o    \
                     picture.o   \
                     render.o    \
                     $(NULL)
@@ -26,6 +24,7 @@ NXAGENT_SKIP_OBJS =             \
                 miindex.c \
                 mipict.c \
                 mirect.c \
+                mitrap.c \
                 mitri.c \
                 renderedge.c \
                 $(NXAGENT_SKIP_SRCS) \
@@ -38,6 +37,7 @@ NXAGENT_SKIP_OBJS =             \
                 miindex.o \
                 mipict.o \
                 mirect.o \
+                mitrap.o \
                 mitri.o \
                 renderedge.o \
                 $(NXAGENT_SKIP_OBJS) \

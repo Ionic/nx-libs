@@ -23,7 +23,6 @@ SRCS =  \
         NXmiexpose.c \
         NXresource.c \
 	NXdamage.c \
-	NXmitrap.c \
 	Args.c \
 	Binder.c \
 	BitmapUtils.c \
@@ -85,7 +84,6 @@ OBJS =  \
         NXmiexpose.o \
         NXresource.o \
 	NXdamage.o \
-	NXmitrap.o \
 	Args.o \
 	Binder.o \
 	BitmapUtils.o \

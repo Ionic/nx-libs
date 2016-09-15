@@ -100,16 +100,8 @@ miCompositeRects(CARD8 op,
                  PicturePtr pDst,
                  xRenderColor * color, int nRect, xRectangle *rects);
 
-void
+extern _X_EXPORT void
  miTrapezoidBounds(int ntrap, xTrapezoid * traps, BoxPtr box);
-
-void
-
-miTrapezoids(CARD8 op,
-             PicturePtr pSrc,
-             PicturePtr pDst,
-             PictFormatPtr maskFormat,
-             INT16 xSrc, INT16 ySrc, int ntrap, xTrapezoid * traps);
 
 void
  miPointFixedBounds(int npoint, xPointFixed * points, BoxPtr bounds);
@@ -128,10 +120,21 @@ miTriangles(CARD8 op,
             PictFormatPtr maskFormat,
             INT16 xSrc, INT16 ySrc, int ntri, xTriangle * tris);
 
-PicturePtr
-miCreateAlphaPicture(ScreenPtr pScreen,
-                     PicturePtr pDst,
-                     PictFormatPtr pPictFormat, CARD16 width, CARD16 height);
+void
+
+miTriStrip(CARD8 op,
+           PicturePtr pSrc,
+           PicturePtr pDst,
+           PictFormatPtr maskFormat,
+           INT16 xSrc, INT16 ySrc, int npoint, xPointFixed * points);
+
+void
+
+miTriFan(CARD8 op,
+         PicturePtr pSrc,
+         PicturePtr pDst,
+         PictFormatPtr maskFormat,
+         INT16 xSrc, INT16 ySrc, int npoint, xPointFixed * points);
 
 extern _X_EXPORT Bool
  miInitIndexed(ScreenPtr pScreen, PictFormatPtr pFormat);
