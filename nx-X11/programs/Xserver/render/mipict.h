@@ -94,7 +94,7 @@ extern _X_EXPORT void
 extern _X_EXPORT Bool
  miIsSolidAlpha(PicturePtr pSrc);
 
-void
+extern _X_EXPORT void
 
 miCompositeRects(CARD8 op,
                  PicturePtr pDst,

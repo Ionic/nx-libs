@@ -38,25 +38,39 @@ miColorRects(PicturePtr pDst,
              xRenderColor * color,
              int nRect, xRectangle *rects, int xoff, int yoff)
 {
-    ScreenPtr pScreen = pDst->pDrawable->pScreen;
     CARD32 pixel;
     GCPtr pGC;
+#ifdef NEED_NEWER_XORG_VERSION
+    ChangeGCVal tmpval[5];
+#else
     CARD32 tmpval[5];
+#endif
     RegionPtr pClip;
     unsigned long mask;
 
     miRenderColorToPixel(pDst->pFormat, color, &pixel);
 
-    pGC = GetScratchGC(pDst->pDrawable->depth, pScreen);
+    pGC = GetScratchGC(pDst->pDrawable->depth, pDst->pDrawable->pScreen);
     if (!pGC)
         return;
+#ifdef NEED_NEWER_XORG_VERSION
+    tmpval[0].val = GXcopy;
+    tmpval[1].val = pixel;
+    tmpval[2].val = pDst->subWindowMode;
+#else
     tmpval[0] = GXcopy;
     tmpval[1] = pixel;
     tmpval[2] = pDst->subWindowMode;
+#endif
     mask = GCFunction | GCForeground | GCSubwindowMode;
     if (pClipPict->clientClip) {
+#ifdef NEED_NEWER_XORG_VERSION
+        tmpval[3].val = pDst->clipOrigin.x - xoff;
+        tmpval[4].val = pDst->clipOrigin.y - yoff;
+#else
         tmpval[3] = pDst->clipOrigin.x - xoff;
         tmpval[4] = pDst->clipOrigin.y - yoff;
+#endif
         mask |= GCClipXOrigin | GCClipYOrigin;
 
         pClip = RegionCreate(NULL, 1);
@@ -64,7 +78,11 @@ miColorRects(PicturePtr pDst,
         (*pGC->funcs->ChangeClip) (pGC, CT_REGION, pClip, 0);
     }
 
-    ChangeGC(pGC, mask, tmpval);
+    ChangeGC(
+#ifdef NEED_NEWER_XORG_VERSION
+             NullClient,
+#endif
+             pGC, mask, tmpval);
     ValidateGC(pDst->pDrawable, pGC);
     if (xoff || yoff) {
         int i;
@@ -115,7 +133,12 @@ miCompositeRects(CARD8 op,
         int error;
         Pixel pixel;
         GCPtr pGC;
-        CARD32 tmpval[2];
+#ifdef NEED_NEWER_XORG_VERSION
+        ChangeGCVal gcvals[2];
+        XID tmpval[1];
+#else
+        XID tmpval[2];
+#endif
 
         rgbaFormat = PictureMatchFormat(pScreen, 32, PICT_a8r8g8b8);
         if (!rgbaFormat)
@@ -131,10 +154,25 @@ miCompositeRects(CARD8 op,
         pGC = GetScratchGC(rgbaFormat->depth, pScreen);
         if (!pGC)
             goto bail3;
+#ifdef NEED_NEWER_XORG_VERSION
+        gcvals[0].val = GXcopy;
+        gcvals[1].val = pixel;
+#else
         tmpval[0] = GXcopy;
         tmpval[1] = pixel;
+#endif
 
-        ChangeGC(pGC, GCFunction | GCForeground, tmpval);
+        ChangeGC(
+#ifdef NEED_NEWER_XORG_VERSION
+                 NullClient,
+#endif
+                 pGC, GCFunction | GCForeground,
+#ifdef NEED_NEWER_XORG_VERSION
+                 gcvals
+#else
+                 tmpval
+#endif
+        );
         ValidateGC(&pPixmap->drawable, pGC);
         one.x = 0;
         one.y = 0;
@@ -144,7 +182,7 @@ miCompositeRects(CARD8 op,
 
         tmpval[0] = xTrue;
         pSrc = CreatePicture(0, &pPixmap->drawable, rgbaFormat,
-                             CPRepeat, tmpval, 0, &error);
+                             CPRepeat, tmpval, serverClient, &error);
 
         if (!pSrc)
             goto bail4;
