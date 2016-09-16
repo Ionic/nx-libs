@@ -721,11 +721,7 @@ int nxagentCreatePicture(PicturePtr pPicture, Mask mask)
 
   if (mask & CPDither)
   {
-    attributes.dither = pPicture -> dither;
-
-    valuemask |= CPDither;
-
-    nxagentSetPictureRemoteValue(pPicture, dither, attributes.dither);
+    /* unimplemented. */
   }
 
   if (mask & CPComponentAlpha)
@@ -1160,14 +1156,7 @@ void nxagentChangePicture(PicturePtr pPicture, Mask mask)
 
   if (mask & CPDither)
   {
-    attributes.dither = pPicture -> dither;
-
-    if (nxagentCheckPictureRemoteValue(pPicture, dither, attributes.dither) == 0)
-    {
-      valuemask |= CPDither;
-
-      nxagentSetPictureRemoteValue(pPicture, dither, attributes.dither);
-    }
+    /* unimplemented. */
   }
 
   if (mask & CPComponentAlpha)
@@ -2870,10 +2859,6 @@ void nxagentReconnectPicture(void * p0, XID x1, void *p2)
   attributes.poly_mode = pPicture -> polyMode;
 
   mask |= CPPolyMode;
-
-  attributes.dither = pPicture -> dither;
-
-  mask |= CPDither;
 
   attributes.component_alpha = pPicture -> componentAlpha;
 

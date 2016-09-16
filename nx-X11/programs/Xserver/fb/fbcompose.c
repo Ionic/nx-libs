@@ -2673,7 +2673,7 @@ static CARD32 gradientPixel(const SourcePictPtr pGradient, xFixed_48_16 pos, uns
     assert(ipos >= 0);
     assert(ipos < PICT_GRADIENT_STOPTABLE_SIZE);
 
-    return pGradient->linear.colorTable[ipos];
+    return pGradient->gradient.colorTable[ipos];
 }
 
 static void fbFetchSourcePict(PicturePtr pict, int x, int y, int width, CARD32 *buffer)
@@ -2774,17 +2774,32 @@ static void fbFetchSourcePict(PicturePtr pict, int x, int y, int width, CARD32 *
         }
 
         if (pGradient->type == SourcePictTypeRadial) {
+            /* Calculate values prior to using them. Courtesy of old code in picture.c... */
+            double x = (double) pGradient->radial.c1.radius / (double) pGradient->radial.c2.radius;
+            double dx = (pGradient->radial.c2.x - pGradient->radial.c1.x);
+            double dy = (pGradient->radial.c2.y - pGradient->radial.c1.y);
+            double fx = pGradient->radial.c1.x - x * dx;
+            double fy = pGradient->radial.c1.y - x * dy;
+            double m = 1. / (1 + x);
+            double b_ = -x * m;
+            dx /= 65536.;
+            dy /= 65536.;
+            fx /= 65536.;
+            fy /= 65536.;
+            x = pGradient->radial.c2.radius / 65536.;
+            double a_ = x * x - dx * dx - dy * dy;
+
             if (affine) {
-                rx -= pGradient->radial.fx;
-                ry -= pGradient->radial.fy;
+                rx -= fx;
+                ry -= fy;
 
                 while (buffer < end) {
-                    double b = 2*(rx*pGradient->radial.dx + ry*pGradient->radial.dy);
+                    double b = 2*(rx*dx + ry*dy);
                     double c = -(rx*rx + ry*ry);
-                    double det = (b * b) - (4 * pGradient->radial.a * c);
-                    double s = (-b + sqrt(det))/(2. * pGradient->radial.a);
+                    double det = (b * b) - (4 * a_ * c);
+                    double s = (-b + sqrt(det))/(2. * a_);
                     *buffer = gradientPixel(pGradient,
-                                            (xFixed_48_16)((s*pGradient->radial.m + pGradient->radial.b)*65536),
+                                            (xFixed_48_16)((s*m + b_)*65536),
                                             pict->repeatType);
                     ++buffer;
                     rx += cx;
@@ -2800,14 +2815,14 @@ static void fbFetchSourcePict(PicturePtr pict, int x, int y, int width, CARD32 *
                     } else {
                         x = y = 0.;
                     }
-                    x -= pGradient->radial.fx;
-                    y -= pGradient->radial.fy;
-                    b = 2*(x*pGradient->radial.dx + y*pGradient->radial.dy);
+                    x -= fx;
+                    y -= fy;
+                    b = 2*(x*dx + y*dy);
                     c = -(x*x + y*y);
-                    det = (b * b) - (4 * pGradient->radial.a * c);
-                    s = (-b + sqrt(det))/(2. * pGradient->radial.a);
+                    det = (b * b) - (4 * a_ * c);
+                    s = (-b + sqrt(det))/(2. * a_);
                     *buffer = gradientPixel(pGradient,
-                                            (xFixed_48_16)((s*pGradient->radial.m + pGradient->radial.b)*65536),
+                                            (xFixed_48_16)((s*m + b_)*65536),
                                             pict->repeatType);
                     ++buffer;
                     rx += cx;

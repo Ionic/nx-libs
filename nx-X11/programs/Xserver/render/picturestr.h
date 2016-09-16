@@ -94,30 +94,28 @@ typedef struct _PictLinearGradient {
     unsigned int type;
     int nstops;
     PictGradientStopPtr stops;
-    CARD32 colorTable[PICT_GRADIENT_STOPTABLE_SIZE];
     xPointFixed p1;
     xPointFixed p2;
 } PictLinearGradient, *PictLinearGradientPtr;
+
+typedef struct _PictCircle {
+    xFixed x;
+    xFixed y;
+    xFixed radius;
+} PictCircle, *PictCirclePtr;
 
 typedef struct _PictRadialGradient {
     unsigned int type;
     int nstops;
     PictGradientStopPtr stops;
-    CARD32 colorTable[PICT_GRADIENT_STOPTABLE_SIZE];
-    double fx;
-    double fy;
-    double dx;
-    double dy;
-    double a;
-    double m;
-    double b;
+    PictCircle c1;
+    PictCircle c2;
 } PictRadialGradient, *PictRadialGradientPtr;
 
 typedef struct _PictConicalGradient {
     unsigned int type;
     int nstops;
     PictGradientStopPtr stops;
-    CARD32 colorTable[PICT_GRADIENT_STOPTABLE_SIZE];
     xPointFixed center;
     xFixed angle;
 } PictConicalGradient, *PictConicalGradientPtr;
@@ -134,7 +132,7 @@ typedef union _SourcePict {
 typedef struct _Picture {
     DrawablePtr pDrawable;
     PictFormatPtr pFormat;
-    CARD32 format;              /* PICT_FORMAT */
+    PictFormatShort format;     /* PICT_FORMAT */
     int refcnt;
     CARD32 id;
     unsigned int repeat:1;
@@ -145,8 +143,9 @@ typedef struct _Picture {
     unsigned int freeCompClip:1;
     unsigned int componentAlpha:1;
     unsigned int repeatType:2;
-    int filter:3;
-    unsigned int unused:18;
+    unsigned int filter:3;
+    unsigned int stateChanges:CPLastBit;
+    unsigned int unused:18 - CPLastBit;
 
     PicturePtr pNext;           /* chain on same drawable */
 
@@ -156,14 +155,15 @@ typedef struct _Picture {
     DDXPointRec clipOrigin;
     RegionPtr clientClip;
 
-    Atom dither;
-
-    unsigned long stateChanges;
     unsigned long serialNumber;
 
     RegionPtr pCompositeClip;
 
+#ifdef NEED_NEWER_XORG_VERSION
+    PrivateRec *devPrivates;
+#else
     DevUnion *devPrivates;
+#endif
 
     PictTransform *transform;
 
@@ -293,9 +293,11 @@ typedef Bool (*RealizeGlyphProcPtr) (ScreenPtr pScreen, GlyphPtr glyph);
 typedef void (*UnrealizeGlyphProcPtr) (ScreenPtr pScreen, GlyphPtr glyph);
 
 typedef struct _PictureScreen {
+#ifndef NEED_NEWER_XORG_VERSION
     int totalPictureSize;
     unsigned int *PicturePrivateSizes;
     int PicturePrivateLen;
+#endif
 
     PictFormatPtr formats;
     PictFormatPtr fallback;
@@ -329,6 +331,10 @@ typedef struct _PictureScreen {
     PictFilterAliasPtr filterAliases;
     int nfilterAliases;
 
+    /**
+     * Called immediately after a picture's transform is changed through the
+     * SetPictureTransform request.  Not called for source-only pictures.
+     */
     ChangePictureTransformProcPtr ChangePictureTransform;
 
     /**
@@ -356,17 +362,34 @@ typedef struct _PictureScreen {
     TriFanProcPtr TriFan;
 } PictureScreenRec, *PictureScreenPtr;
 
+#ifdef NEED_NEWER_XORG_VERSION
+extern _X_EXPORT DevPrivateKeyRec PictureScreenPrivateKeyRec;
+#define PictureScreenPrivateKey (&PictureScreenPrivateKeyRec)
+
+extern _X_EXPORT DevPrivateKeyRec PictureWindowPrivateKeyRec;
+#define	PictureWindowPrivateKey (&PictureWindowPrivateKeyRec)
+#else
 extern int PictureScreenPrivateIndex;
 extern int PictureWindowPrivateIndex;
+#endif
+
 extern RESTYPE PictureType;
 extern RESTYPE PictFormatType;
 extern RESTYPE GlyphSetType;
 
+#ifdef NEED_NEWER_XORG_VERSION
+#define GetPictureScreen(s) ((PictureScreenPtr)dixLookupPrivate(&(s)->devPrivates, PictureScreenPrivateKey))
+#define GetPictureScreenIfSet(s) (dixPrivateKeyRegistered(PictureScreenPrivateKey) ? GetPictureScreen(s) : NULL)
+#define SetPictureScreen(s,p) dixSetPrivate(&(s)->devPrivates, PictureScreenPrivateKey, p)
+#define GetPictureWindow(w) ((PicturePtr)dixLookupPrivate(&(w)->devPrivates, PictureWindowPrivateKey))
+#define SetPictureWindow(w,p) dixSetPrivate(&(w)->devPrivates, PictureWindowPrivateKey, p)
+#else
 #define GetPictureScreen(s) ((PictureScreenPtr) ((s)->devPrivates[PictureScreenPrivateIndex].ptr))
 #define GetPictureScreenIfSet(s) ((PictureScreenPrivateIndex != -1) ? GetPictureScreen(s) : NULL)
 #define SetPictureScreen(s,p) ((s)->devPrivates[PictureScreenPrivateIndex].ptr = (void *) (p))
 #define GetPictureWindow(w) ((PicturePtr) ((w)->devPrivates[PictureWindowPrivateIndex].ptr))
 #define SetPictureWindow(w,p) ((w)->devPrivates[PictureWindowPrivateIndex].ptr = (void *) (p))
+#endif
 
 #define VERIFY_PICTURE(pPicture, pid, client, mode, err) {\
     pPicture = SecurityLookupIDByType(client, pid, PictureType, mode);\
@@ -384,6 +407,7 @@ extern RESTYPE GlyphSetType;
     } \
 } \
 
+#ifndef NEED_NEWER_XORG_VERSION
 void
  ResetPicturePrivateIndex(void);
 
@@ -392,33 +416,24 @@ int
 
 Bool
  AllocatePicturePrivate(ScreenPtr pScreen, int index2, unsigned int amount);
+#endif
 
-Bool
- PictureDestroyWindow(WindowPtr pWindow);
+extern _X_EXPORT PictFormatPtr
+ PictureWindowFormat(WindowPtr pWindow);
 
-Bool
- PictureCloseScreen(ScreenPtr pScreen);
-
-void
- PictureStoreColors(ColormapPtr pColormap, int ndef, xColorItem * pdef);
-
-Bool
- PictureInitIndexedFormats(ScreenPtr pScreen);
-
-Bool
+extern _X_EXPORT Bool
  PictureSetSubpixelOrder(ScreenPtr pScreen, int subpixel);
 
-int
+extern _X_EXPORT int
  PictureGetSubpixelOrder(ScreenPtr pScreen);
 
-PictFormatPtr PictureCreateDefaultFormats(ScreenPtr pScreen, int *nformatp);
-
-PictFormatPtr
+extern _X_EXPORT PictFormatPtr
 PictureMatchVisual(ScreenPtr pScreen, int depth, VisualPtr pVisual);
 
-PictFormatPtr PictureMatchFormat(ScreenPtr pScreen, int depth, CARD32 format);
+extern _X_EXPORT PictFormatPtr
+PictureMatchFormat(ScreenPtr pScreen, int depth, CARD32 format);
 
-Bool
+extern _X_EXPORT Bool
  PictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats);
 
 extern _X_EXPORT int
@@ -452,52 +467,47 @@ extern _X_EXPORT int
 SetPictureFilter(PicturePtr pPicture, char *name, int len,
                  xFixed * params, int nparams);
 
-Bool
+extern _X_EXPORT Bool
  PictureFinishInit(void);
 
-void
- SetPictureToDefaults(PicturePtr pPicture);
-
+#ifndef NEED_NEWER_XORG_VERSION
 PicturePtr AllocatePicture(ScreenPtr pScreen);
+#endif
 
-PicturePtr
+extern _X_EXPORT PicturePtr
 CreatePicture(Picture pid,
               DrawablePtr pDrawable,
               PictFormatPtr pFormat,
               Mask mask, XID *list, ClientPtr client, int *error);
 
-int
-
+extern _X_EXPORT int
 ChangePicture(PicturePtr pPicture,
               Mask vmask, XID *vlist, DevUnion *ulist, ClientPtr client);
 
-int
+extern _X_EXPORT int
 
 SetPictureClipRects(PicturePtr pPicture,
                     int xOrigin, int yOrigin, int nRect, xRectangle *rects);
 
-int
-
+extern _X_EXPORT int
 SetPictureClipRegion(PicturePtr pPicture,
                      int xOrigin, int yOrigin, RegionPtr pRegion);
 
-int
+extern _X_EXPORT int
  SetPictureTransform(PicturePtr pPicture, PictTransform * transform);
 
-void
+#ifndef NEED_NEWER_XORG_VERSION
+extern _X_EXPORT void
  CopyPicture(PicturePtr pSrc, Mask mask, PicturePtr pDst);
+#endif
 
-void
+extern _X_EXPORT void
  ValidatePicture(PicturePtr pPicture);
 
-int
+extern _X_EXPORT int
  FreePicture(void *pPicture, XID pid);
 
-int
- FreePictFormat(void *pPictFormat, XID pid);
-
-void
-
+extern _X_EXPORT void
 CompositePicture(CARD8 op,
                  PicturePtr pSrc,
                  PicturePtr pMask,
@@ -516,22 +526,19 @@ CompositeGlyphs(CARD8 op,
                 INT16 xSrc,
                 INT16 ySrc, int nlist, GlyphListPtr lists, GlyphPtr * glyphs);
 
-void
-
+extern _X_EXPORT void
 CompositeRects(CARD8 op,
                PicturePtr pDst,
                xRenderColor * color, int nRect, xRectangle *rects);
 
-void
-
+extern _X_EXPORT void
 CompositeTrapezoids(CARD8 op,
                     PicturePtr pSrc,
                     PicturePtr pDst,
                     PictFormatPtr maskFormat,
                     INT16 xSrc, INT16 ySrc, int ntrap, xTrapezoid * traps);
 
-void
-
+extern _X_EXPORT void
 CompositeTriangles(CARD8 op,
                    PicturePtr pSrc,
                    PicturePtr pDst,
@@ -539,16 +546,14 @@ CompositeTriangles(CARD8 op,
                    INT16 xSrc,
                    INT16 ySrc, int ntriangles, xTriangle * triangles);
 
-void
-
+extern _X_EXPORT void
 CompositeTriStrip(CARD8 op,
                   PicturePtr pSrc,
                   PicturePtr pDst,
                   PictFormatPtr maskFormat,
                   INT16 xSrc, INT16 ySrc, int npoints, xPointFixed * points);
 
-void
-
+extern _X_EXPORT void
 CompositeTriFan(CARD8 op,
                 PicturePtr pSrc,
                 PicturePtr pDst,
@@ -570,21 +575,21 @@ int
 AnimCursorCreate(CursorPtr *cursors, CARD32 *deltas, int ncursor,
                  CursorPtr *ppCursor, ClientPtr client, XID cid);
 
-void
-
+extern _X_EXPORT void
 AddTraps(PicturePtr pPicture,
          INT16 xOff, INT16 yOff, int ntraps, xTrap * traps);
 
-PicturePtr CreateSolidPicture(Picture pid, xRenderColor * color, int *error);
+extern _X_EXPORT PicturePtr
+CreateSolidPicture(Picture pid, xRenderColor * color, int *error);
 
-PicturePtr
+extern _X_EXPORT PicturePtr
 CreateLinearGradientPicture(Picture pid,
                             xPointFixed * p1,
                             xPointFixed * p2,
                             int nStops,
                             xFixed * stops, xRenderColor * colors, int *error);
 
-PicturePtr
+extern _X_EXPORT PicturePtr
 CreateRadialGradientPicture(Picture pid,
                             xPointFixed * inner,
                             xPointFixed * outer,
@@ -593,7 +598,7 @@ CreateRadialGradientPicture(Picture pid,
                             int nStops,
                             xFixed * stops, xRenderColor * colors, int *error);
 
-PicturePtr
+extern _X_EXPORT PicturePtr
 CreateConicalGradientPicture(Picture pid,
                              xPointFixed * center,
                              xFixed angle,
@@ -601,8 +606,8 @@ CreateConicalGradientPicture(Picture pid,
                              xFixed * stops, xRenderColor * colors, int *error);
 
 #ifdef PANORAMIX
-void PanoramiXRenderInit(void);
-void PanoramiXRenderReset(void);
+extern void PanoramiXRenderInit(void);
+extern void PanoramiXRenderReset(void);
 #endif
 
 /*

@@ -55,7 +55,6 @@
 
 /* prototypes */
 
-PictFormatPtr PictureCreateDefaultFormats (ScreenPtr pScreen, int *nformatp);
 PicturePtr AllocatePicture (ScreenPtr  pScreen);
 PicturePtr CreatePicture (Picture       pid,
                           DrawablePtr   pDrawable,
@@ -66,6 +65,8 @@ PicturePtr CreatePicture (Picture       pid,
                           int           *error);
 static PicturePtr createSourcePicture(void);
 int FreePicture (void *value, XID pid);
+
+static PictFormatPtr PictureCreateDefaultFormats(ScreenPtr pScreen, int *nformatp);
 
 #include "../../render/picture.c"
 
@@ -81,7 +82,7 @@ void *nxagentMatchingFormats(PictFormatPtr pForm);
 
 void nxagentPictureCreateDefaultFormats(ScreenPtr pScreen, FormatInitRec *formats, int *nformats);
 
-PictFormatPtr
+static PictFormatPtr
 PictureCreateDefaultFormats (ScreenPtr pScreen, int *nformatp)
 {
     int             nformats, f;
@@ -93,7 +94,7 @@ PictureCreateDefaultFormats (ScreenPtr pScreen, int *nformatp)
 
     nxagentPictureCreateDefaultFormats(pScreen, formats, &nformats);
 
-    pFormats = (PictFormatPtr) calloc (nformats, sizeof (PictFormatRec));
+    pFormats = calloc (nformats, sizeof (PictFormatRec));
     if (!pFormats)
 	return 0;
     for (f = 0; f < nformats; f++)
@@ -142,6 +143,31 @@ PictureCreateDefaultFormats (ScreenPtr pScreen, int *nformatp)
 	    pFormats[f].direct.redMask = Mask(PICT_FORMAT_R(format));
 	    pFormats[f].direct.red = 0;
 	    break;
+
+        case PICT_TYPE_BGRA:
+            pFormats[f].type = PictTypeDirect;
+
+            pFormats[f].direct.blueMask = Mask (PICT_FORMAT_B(format));
+
+            pFormats[f].direct.blue =
+                (PICT_FORMAT_BPP(format) - PICT_FORMAT_B(format));
+
+            pFormats[f].direct.greenMask = Mask (PICT_FORMAT_G(format));
+
+            pFormats[f].direct.green =
+                (PICT_FORMAT_BPP(format) - PICT_FORMAT_B(format) -
+                 PICT_FORMAT_G(format));
+
+            pFormats[f].direct.redMask = Mask (PICT_FORMAT_R(format));
+
+            pFormats[f].direct.red =
+                (PICT_FORMAT_BPP(format) - PICT_FORMAT_B(format) -
+                 PICT_FORMAT_G(format) - PICT_FORMAT_R(format));
+
+            pFormats[f].direct.alphaMask = Mask (PICT_FORMAT_A(format));
+
+            pFormats[f].direct.alpha = 0;
+            break;
 
 	case PICT_TYPE_A:
 	    pFormats[f].type = PictTypeDirect;
@@ -230,7 +256,12 @@ CreatePicture (Picture		pid,
     PicturePtr		pPicture;
     PictureScreenPtr	ps = GetPictureScreen(pDrawable->pScreen);
 
+#ifdef NEED_NEWER_XORG_VERSION
+    pPicture = dixAllocateScreenObjectWithPrivates(pDrawable->pScreen,
+                                                   PictureRec, PRIVATE_PICTURE);
+#else
     pPicture = AllocatePicture (pDrawable->pScreen);
+#endif
     if (!pPicture)
     {
 	*error = BadAlloc;
@@ -241,6 +272,15 @@ CreatePicture (Picture		pid,
     pPicture->pDrawable = pDrawable;
     pPicture->pFormat = pFormat;
     pPicture->format = pFormat->format | (pDrawable->bitsPerPixel << 24);
+
+#ifdef NEED_NEWER_XORG_VERSION
+    /* security creation/labeling check */
+    *error = XaceHook(XACE_RESOURCE_ACCESS, client, pid, PictureType, pPicture,
+                      RT_PIXMAP, pDrawable, DixCreateAccess | DixSetAttrAccess);
+    if (*error != Success)
+        goto out;
+#endif
+
     if (pDrawable->type == DRAWABLE_PIXMAP)
     {
         /*
@@ -267,6 +307,9 @@ CreatePicture (Picture		pid,
 	*error = Success;
     if (*error == Success)
 	*error = (*ps->CreatePicture) (pPicture);
+#ifdef NEED_NEWER_XORG_VERSION
+ out:
+#endif
     if (*error != Success)
     {
 	FreePicture (pPicture, (XID) 0);
@@ -275,36 +318,22 @@ CreatePicture (Picture		pid,
     return pPicture;
 }
 
-PicturePtr
-CreateSolidPicture (Picture pid, xRenderColor *color, int *error)
-{
-    PicturePtr pPicture;
-    pPicture = createSourcePicture();
-    if (!pPicture) {
-        *error = BadAlloc;
-        return 0;
-    }
-
-    pPicture->id = pid;
-    pPicture->pSourcePict = (SourcePictPtr) calloc(1, sizeof(PictSolidFill));
-    if (!pPicture->pSourcePict) {
-        *error = BadAlloc;
-        free(pPicture);
-        return 0;
-    }
-    pPicture->pSourcePict->type = SourcePictTypeSolidFill;
-    pPicture->pSourcePict->solidFill.color = xRenderColorToCard32(*color);
-    pPicture->pSourcePict->solidFill.fullColor.alpha=color->alpha;
-    pPicture->pSourcePict->solidFill.fullColor.red=color->red;
-    pPicture->pSourcePict->solidFill.fullColor.green=color->green;
-    pPicture->pSourcePict->solidFill.fullColor.blue=color->blue;
-    return pPicture;
-}
-
 static PicturePtr createSourcePicture(void)
 {
     PicturePtr pPicture;
 
+    /*
+     * We should really port this to a dix-based type,
+     * to be compatible with the new X.Org Server core
+     * architecture.
+     * I haven't found a good way of doing that without
+     * exploiting "private" functions, though.
+     */
+#ifdef NEED_NEWER_XORG_VERSION
+#error Unsupported section, port this!
+    pPicture = dixAllocateScreenObjectWithPrivates(NULL, PictureRec,
+                                                   PRIVATE_PICTURE);
+#else
     extern int nxagentPicturePrivateIndex;
 
     unsigned int totalPictureSize;
@@ -346,12 +375,43 @@ static PicturePtr createSourcePicture(void)
 
       nxagentPicturePriv(pPicture) -> picture = 0;
     }
+#endif
+
+    if (!pPicture)
+        return 0;
 
     pPicture->pDrawable = 0;
     pPicture->pFormat = 0;
     pPicture->pNext = 0;
+    pPicture->format = PICT_a8r8g8b8;
 
     SetPictureToDefaults(pPicture);
+    return pPicture;
+}
+
+PicturePtr
+CreateSolidPicture (Picture pid, xRenderColor *color, int *error)
+{
+    PicturePtr pPicture;
+    pPicture = createSourcePicture();
+    if (!pPicture) {
+        *error = BadAlloc;
+        return 0;
+    }
+
+    pPicture->id = pid;
+    pPicture->pSourcePict = (SourcePictPtr) malloc(sizeof(PictSolidFill));
+    if (!pPicture->pSourcePict) {
+        *error = BadAlloc;
+        free(pPicture);
+        return 0;
+    }
+    pPicture->pSourcePict->type = SourcePictTypeSolidFill;
+    pPicture->pSourcePict->solidFill.color = xRenderColorToCard32(*color);
+    pPicture->pSourcePict->solidFill.fullColor.alpha=color->alpha;
+    pPicture->pSourcePict->solidFill.fullColor.red=color->red;
+    pPicture->pSourcePict->solidFill.fullColor.green=color->green;
+    pPicture->pSourcePict->solidFill.fullColor.blue=color->blue;
     return pPicture;
 }
 
@@ -365,15 +425,15 @@ FreePicture (void *	value,
     {
         nxagentDestroyPicture(pPicture);
 
-	if (pPicture->transform)
-	    free (pPicture->transform);
-        if (!pPicture->pDrawable) {
-            if (pPicture->pSourcePict) {
-                if (pPicture->pSourcePict->type != SourcePictTypeSolidFill)
-                    free(pPicture->pSourcePict->linear.stops);
-                free(pPicture->pSourcePict);
-            }
-        } else {
+	free (pPicture->transform);
+        free(pPicture->filter_params);
+        if (pPicture->pSourcePict) {
+            if (pPicture->pSourcePict->type != SourcePictTypeSolidFill)
+                free(pPicture->pSourcePict->linear.stops);
+
+            free(pPicture->pSourcePict);
+        }
+        if (pPicture->pDrawable) {
             ScreenPtr	    pScreen = pPicture->pDrawable->pScreen;
             PictureScreenPtr    ps = GetPictureScreen(pScreen);
 	
@@ -386,10 +446,17 @@ FreePicture (void *	value,
                 WindowPtr	pWindow = (WindowPtr) pPicture->pDrawable;
                 PicturePtr	*pPrev;
 
-                for (pPrev = (PicturePtr *) &((pWindow)->devPrivates[PictureWindowPrivateIndex].ptr);
-                     *pPrev;
-                     pPrev = &(*pPrev)->pNext)
-                {
+                for (pPrev =
+#ifdef NEED_NEWER_XORG_VERSION
+                     (PicturePtr *) dixLookupPrivateAddr
+                     (&pWindow->devPrivates, PictureWindowPrivateKey);
+#else
+                     (PicturePtr *) & ((pWindow)->
+                                       devPrivates[PictureWindowPrivateIndex].
+                                       ptr);
+#endif
+                     *pPrev; pPrev = &(*pPrev)->pNext
+                ) {
                     if (*pPrev == pPicture)
                     {
                         *pPrev = pPicture->pNext;
@@ -402,7 +469,11 @@ FreePicture (void *	value,
                 (*pScreen->DestroyPixmap) ((PixmapPtr)pPicture->pDrawable);
             }
         }
+#ifdef NEED_NEWER_XORG_VERSION
+        dixFreeObjectWithPrivates(pPicture, PRIVATE_PICTURE);
+#else
 	free (pPicture);
+#endif
     }
     return Success;
 }
@@ -562,11 +633,13 @@ void nxagentPictureCreateDefaultFormats(ScreenPtr pScreen, FormatInitRec *format
   formats[*nformats].format = PICT_a1;
   formats[*nformats].depth = 1;
   *nformats += 1;
-  formats[*nformats].format = PICT_a4;
-  formats[*nformats].depth = 4;
-  *nformats += 1;
-  formats[*nformats].format = PICT_a8;
+  formats[*nformats].format = PICT_FORMAT(BitsPerPixel(8),
+                                          PICT_TYPE_A, 8, 0, 0, 0);
   formats[*nformats].depth = 8;
+  *nformats += 1;
+  formats[*nformats].format = PICT_FORMAT(BitsPerPixel(4),
+                                          PICT_TYPE_A, 4, 0, 0, 0);
+  formats[*nformats].depth = 4;
   *nformats += 1;
   formats[*nformats].format = PICT_a8r8g8b8;
   formats[*nformats].depth = 32;
@@ -580,6 +653,13 @@ void nxagentPictureCreateDefaultFormats(ScreenPtr pScreen, FormatInitRec *format
    * formats[*nformats].depth = 32;
    * *nformats += 1;
    */
+
+  formats[*nformats].format = PICT_b8g8r8a8;
+  formats[*nformats].depth = 32;
+  *nformats += 1;
+  formats[*nformats].format = PICT_b8g8r8x8;
+  formats[*nformats].depth = 32;
+  *nformats += 1;
 
   /* now look through the depths and visuals adding other formats */
   for (v = 0; v < pScreen->numVisuals; v++)
@@ -647,8 +727,14 @@ void nxagentPictureCreateDefaultFormats(ScreenPtr pScreen, FormatInitRec *format
 	*nformats = addFormat (formats, *nformats,
 			      PICT_x8r8g8b8, pDepth->depth);
       }
+      if (pDepth->depth == 30)
+      {
+	*nformats = addFormat (formats, *nformats,
+			      PICT_a2r10g10b10, pDepth->depth);
+	*nformats = addFormat (formats, *nformats,
+			      PICT_x2r10g10b10, pDepth->depth);
+      }
       break;
     }
   }
 }
-
