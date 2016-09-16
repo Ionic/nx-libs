@@ -253,6 +253,7 @@ DEFINES = \
 	-DRANDR_15_INTERFACE=1 \
         -DPANORAMIX \
         -UDEBUG_TREE \
+        -UNEED_NEWER_XORG_VERSION \
 	$(NULL)
 
 all:: $(OBJS)
