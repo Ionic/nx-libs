@@ -560,12 +560,6 @@ CompositeTriFan(CARD8 op,
                 PictFormatPtr maskFormat,
                 INT16 xSrc, INT16 ySrc, int npoints, xPointFixed * points);
 
-Bool
- PictureTransformPoint(PictTransformPtr transform, PictVectorPtr vector);
-
-Bool
- PictureTransformPoint3d(PictTransformPtr transform, PictVectorPtr vector);
-
 void RenderExtensionInit(void);
 
 Bool
@@ -615,12 +609,10 @@ extern void PanoramiXRenderReset(void);
  */
 
 extern _X_EXPORT void
-
 PictTransform_from_xRenderTransform(PictTransformPtr pict,
                                     xRenderTransform * render);
 
 extern _X_EXPORT void
-
 xRenderTransform_from_PictTransform(xRenderTransform * render,
                                     PictTransformPtr pict);
 
