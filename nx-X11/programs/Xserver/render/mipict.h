@@ -109,9 +109,6 @@ extern _X_EXPORT void
 extern _X_EXPORT void
  miTriangleBounds(int ntri, xTriangle * tris, BoxPtr bounds);
 
-void
- miRasterizeTriangle(PicturePtr pMask, xTriangle * tri, int x_off, int y_off);
-
 extern _X_EXPORT Bool
  miInitIndexed(ScreenPtr pScreen, PictFormatPtr pFormat);
 
