@@ -326,8 +326,6 @@ findVisual(ScreenPtr pScreen, VisualID vid)
     return 0;
 }
 
-extern char *ConnectionInfo;
-
 #ifndef NXAGENT_SERVER
 static int
 ProcRenderQueryPictFormats(ClientPtr client)
