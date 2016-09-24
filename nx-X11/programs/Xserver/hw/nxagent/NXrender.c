@@ -132,10 +132,15 @@ void nxagentGlyphs(CARD8, PicturePtr, PicturePtr, PictFormatPtr,
                        INT16, INT16, int, void *, int, GlyphPtr *);
 
 static int
-ProcRenderQueryVersion (ClientPtr client)
+ProcRenderQueryVersion(ClientPtr client)
 {
-    RenderClientPtr pRenderClient = GetRenderClient (client);
-    xRenderQueryVersionReply rep;
+    RenderClientPtr pRenderClient = GetRenderClient(client);
+    xRenderQueryVersionReply rep = {
+        .type = X_Reply,
+        .sequenceNumber = client->sequence,
+        .length = 0
+    };
+
     REQUEST(xRenderQueryVersionReq);
 
     REQUEST_SIZE_MATCH(xRenderQueryVersionReq);
@@ -143,295 +148,315 @@ ProcRenderQueryVersion (ClientPtr client)
     pRenderClient->major_version = stuff->majorVersion;
     pRenderClient->minor_version = stuff->minorVersion;
 
-    memset(&rep, 0, sizeof(xRenderQueryVersionReply));
+    if ((stuff->majorVersion * 1000 + stuff->minorVersion) <
+        (nxagentRenderVersionMajor * 1000 + nxagentRenderVersionMinor)) {
+        rep.majorVersion = stuff->majorVersion;
+        rep.minorVersion = stuff->minorVersion;
+    }
+    else {
+        rep.majorVersion = nxagentRenderVersionMajor;
+        rep.minorVersion = nxagentRenderVersionMinor;
+    }
     rep.type = X_Reply;
     rep.length = 0;
     rep.sequenceNumber = client->sequence;
-    rep.majorVersion = nxagentRenderVersionMajor;
-    rep.minorVersion = nxagentRenderVersionMinor;
     if (client->swapped) {
-	swaps(&rep.sequenceNumber);
-	swapl(&rep.length);
-	swapl(&rep.majorVersion);
-	swapl(&rep.minorVersion);
+        swaps(&rep.sequenceNumber);
+        swapl(&rep.length);
+        swapl(&rep.majorVersion);
+        swapl(&rep.minorVersion);
     }
     WriteToClient(client, sizeof(xRenderQueryVersionReply), &rep);
-    return (client->noClientException);
+    return
+#ifdef NEED_NEWER_XORG_VERSION
+           Success
+#else
+           (client->noClientException)
+#endif
+                                      ;
 }
 
 static int
-ProcRenderQueryPictFormats (ClientPtr client)
+ProcRenderQueryPictFormats(ClientPtr client)
 {
-    RenderClientPtr		    pRenderClient = GetRenderClient (client);
-    xRenderQueryPictFormatsReply    *reply;
-    xPictScreen			    *pictScreen;
-    xPictDepth			    *pictDepth;
-    xPictVisual			    *pictVisual;
-    xPictFormInfo		    *pictForm;
-    CARD32			    *pictSubpixel;
-    ScreenPtr			    pScreen;
-    VisualPtr			    pVisual;
-    DepthPtr			    pDepth;
-    int				    v, d;
-    PictureScreenPtr		    ps;
-    PictFormatPtr		    pFormat;
-    int				    nformat;
-    int				    ndepth;
-    int				    nvisual;
-    int				    rlength;
-    int				    s;
-    int				    numScreens;
-    int				    numSubpixel;
+    RenderClientPtr pRenderClient = GetRenderClient(client);
+    xRenderQueryPictFormatsReply *reply;
+    xPictScreen *pictScreen;
+    xPictDepth *pictDepth;
+    xPictVisual *pictVisual;
+    xPictFormInfo *pictForm;
+    CARD32 *pictSubpixel;
+    ScreenPtr pScreen;
+    VisualPtr pVisual;
+    DepthPtr pDepth;
+    int v, d;
+    PictureScreenPtr ps;
+    PictFormatPtr pFormat;
+    int nformat;
+    int ndepth;
+    int nvisual;
+    int rlength;
+    int s;
+    int numScreens;
+    int numSubpixel;
 
-    extern int                      nxagentAlphaEnabled;
+    extern int nxagentAlphaEnabled;
 /*    REQUEST(xRenderQueryPictFormatsReq); */
 
     REQUEST_SIZE_MATCH(xRenderQueryPictFormatsReq);
 
 #ifdef PANORAMIX
     if (noPanoramiXExtension)
-	numScreens = screenInfo.numScreens;
-    else 
-        numScreens = ((xConnSetup *)ConnectionInfo)->numRoots;
+        numScreens = screenInfo.numScreens;
+    else
+        numScreens = ((xConnSetup *) ConnectionInfo)->numRoots;
 #else
     numScreens = screenInfo.numScreens;
 #endif
     ndepth = nformat = nvisual = 0;
-    for (s = 0; s < numScreens; s++)
-    {
-	pScreen = screenInfo.screens[s];
-	for (d = 0; d < pScreen->numDepths; d++)
-	{
-	    pDepth = pScreen->allowedDepths + d;
-	    ++ndepth;
+    for (s = 0; s < numScreens; s++) {
+        pScreen = screenInfo.screens[s];
+        for (d = 0; d < pScreen->numDepths; d++) {
+            pDepth = pScreen->allowedDepths + d;
+            ++ndepth;
 
-	    for (v = 0; v < pDepth->numVids; v++)
-	    {
-		pVisual = findVisual (pScreen, pDepth->vids[v]);
-		if (pVisual && PictureMatchVisual (pScreen, pDepth->depth, pVisual))
-		    ++nvisual;
-	    }
-	}
-	ps = GetPictureScreenIfSet(pScreen);
-	if (ps)
-	    nformat += ps->nformats;
+            for (v = 0; v < pDepth->numVids; v++) {
+                pVisual = findVisual(pScreen, pDepth->vids[v]);
+                if (pVisual &&
+                    PictureMatchVisual(pScreen, pDepth->depth, pVisual))
+                    ++nvisual;
+            }
+        }
+        ps = GetPictureScreenIfSet(pScreen);
+        if (ps)
+            nformat += ps->nformats;
     }
     if (pRenderClient->major_version == 0 && pRenderClient->minor_version < 6)
-	numSubpixel = 0;
+        numSubpixel = 0;
     else
-	numSubpixel = numScreens;
-    
-    rlength = (sizeof (xRenderQueryPictFormatsReply) +
-	       nformat * sizeof (xPictFormInfo) +
-	       numScreens * sizeof (xPictScreen) +
-	       ndepth * sizeof (xPictDepth) +
-	       nvisual * sizeof (xPictVisual) +
-	       numSubpixel * sizeof (CARD32));
-    reply = (xRenderQueryPictFormatsReply *) calloc (1, rlength);
+        numSubpixel = numScreens;
+
+    rlength = (sizeof(xRenderQueryPictFormatsReply) +
+               nformat * sizeof(xPictFormInfo) +
+               numScreens * sizeof(xPictScreen) +
+               ndepth * sizeof(xPictDepth) +
+               nvisual * sizeof(xPictVisual) + numSubpixel * sizeof(CARD32));
+    reply = (xRenderQueryPictFormatsReply *) calloc(1, rlength);
     if (!reply)
-	return BadAlloc;
+        return BadAlloc;
+
     reply->type = X_Reply;
     reply->sequenceNumber = client->sequence;
-    reply->length = (rlength - sizeof(xGenericReply)) >> 2;
+    reply->length = bytes_to_int32(rlength - sizeof(xGenericReply));
     reply->numFormats = nformat;
     reply->numScreens = numScreens;
     reply->numDepths = ndepth;
     reply->numVisuals = nvisual;
     reply->numSubpixel = numSubpixel;
-    
-    pictForm = (xPictFormInfo *) (reply + 1);
-    
-    for (s = 0; s < numScreens; s++)
-    {
-	pScreen = screenInfo.screens[s];
-	ps = GetPictureScreenIfSet(pScreen);
-	if (ps)
-	{
-	    for (nformat = 0, pFormat = ps->formats; 
-		 nformat < ps->nformats;
-		 nformat++, pFormat++)
-	    {
-		pictForm->id = pFormat->id;
-		pictForm->type = pFormat->type;
-		pictForm->depth = pFormat->depth;
-		pictForm->direct.red = pFormat->direct.red;
-		pictForm->direct.redMask = pFormat->direct.redMask;
-		pictForm->direct.green = pFormat->direct.green;
-		pictForm->direct.greenMask = pFormat->direct.greenMask;
-		pictForm->direct.blue = pFormat->direct.blue;
-		pictForm->direct.blueMask = pFormat->direct.blueMask;
-		pictForm->direct.alpha = nxagentAlphaEnabled ? pFormat->direct.alpha : 0;
-		pictForm->direct.alphaMask = pFormat->direct.alphaMask;
-		if (pFormat->type == PictTypeIndexed && pFormat->index.pColormap)
-		    pictForm->colormap = pFormat->index.pColormap->mid;
-		else
-		    pictForm->colormap = None;
-		if (client->swapped)
-		{
-		    swapl (&pictForm->id);
-		    swaps (&pictForm->direct.red);
-		    swaps (&pictForm->direct.redMask);
-		    swaps (&pictForm->direct.green);
-		    swaps (&pictForm->direct.greenMask);
-		    swaps (&pictForm->direct.blue);
-		    swaps (&pictForm->direct.blueMask);
-		    swaps (&pictForm->direct.alpha);
-		    swaps (&pictForm->direct.alphaMask);
-		    swapl (&pictForm->colormap);
-		}
-		pictForm++;
-	    }
-	}
-    }
-    
-    pictScreen = (xPictScreen *) pictForm;
-    for (s = 0; s < numScreens; s++)
-    {
-	pScreen = screenInfo.screens[s];
-	pictDepth = (xPictDepth *) (pictScreen + 1);
-	ndepth = 0;
-	for (d = 0; d < pScreen->numDepths; d++)
-	{
-	    pictVisual = (xPictVisual *) (pictDepth + 1);
-	    pDepth = pScreen->allowedDepths + d;
 
-	    nvisual = 0;
-	    for (v = 0; v < pDepth->numVids; v++)
-	    {
-		pVisual = findVisual (pScreen, pDepth->vids[v]);
-		if (pVisual && (pFormat = PictureMatchVisual (pScreen, 
-							      pDepth->depth, 
-							      pVisual)))
-		{
-		    pictVisual->visual = pVisual->vid;
-		    pictVisual->format = pFormat->id;
-		    if (client->swapped)
-		    {
-			swapl (&pictVisual->visual);
-			swapl (&pictVisual->format);
-		    }
-		    pictVisual++;
-		    nvisual++;
-		}
-	    }
-	    pictDepth->depth = pDepth->depth;
-	    pictDepth->nPictVisuals = nvisual;
-	    if (client->swapped)
-	    {
-		swaps (&pictDepth->nPictVisuals);
-	    }
-	    ndepth++;
-	    pictDepth = (xPictDepth *) pictVisual;
-	}
-	pictScreen->nDepth = ndepth;
-	ps = GetPictureScreenIfSet(pScreen);
-	if (ps)
-	    pictScreen->fallback = ps->fallback->id;
-	else
-	    pictScreen->fallback = 0;
-	if (client->swapped)
-	{
-	    swapl (&pictScreen->nDepth);
-	    swapl (&pictScreen->fallback);
-	}
-	pictScreen = (xPictScreen *) pictDepth;
+    pictForm = (xPictFormInfo *) (reply + 1);
+
+    for (s = 0; s < numScreens; s++) {
+        pScreen = screenInfo.screens[s];
+        ps = GetPictureScreenIfSet(pScreen);
+        if (ps) {
+            for (nformat = 0, pFormat = ps->formats;
+                 nformat < ps->nformats; nformat++, pFormat++) {
+                pictForm->id = pFormat->id;
+                pictForm->type = pFormat->type;
+                pictForm->depth = pFormat->depth;
+                pictForm->direct.red = pFormat->direct.red;
+                pictForm->direct.redMask = pFormat->direct.redMask;
+                pictForm->direct.green = pFormat->direct.green;
+                pictForm->direct.greenMask = pFormat->direct.greenMask;
+                pictForm->direct.blue = pFormat->direct.blue;
+                pictForm->direct.blueMask = pFormat->direct.blueMask;
+                pictForm->direct.alpha = nxagentAlphaEnabled ? pFormat->direct.alpha : 0;
+                pictForm->direct.alphaMask = pFormat->direct.alphaMask;
+                if (pFormat->type == PictTypeIndexed &&
+                    pFormat->index.pColormap)
+                    pictForm->colormap = pFormat->index.pColormap->mid;
+                else
+                    pictForm->colormap = None;
+                if (client->swapped) {
+                    swapl(&pictForm->id);
+                    swaps(&pictForm->direct.red);
+                    swaps(&pictForm->direct.redMask);
+                    swaps(&pictForm->direct.green);
+                    swaps(&pictForm->direct.greenMask);
+                    swaps(&pictForm->direct.blue);
+                    swaps(&pictForm->direct.blueMask);
+                    swaps(&pictForm->direct.alpha);
+                    swaps(&pictForm->direct.alphaMask);
+                    swapl(&pictForm->colormap);
+                }
+                pictForm++;
+            }
+        }
+    }
+
+    pictScreen = (xPictScreen *) pictForm;
+    for (s = 0; s < numScreens; s++) {
+        pScreen = screenInfo.screens[s];
+        pictDepth = (xPictDepth *) (pictScreen + 1);
+        ndepth = 0;
+        for (d = 0; d < pScreen->numDepths; d++) {
+            pictVisual = (xPictVisual *) (pictDepth + 1);
+            pDepth = pScreen->allowedDepths + d;
+
+            nvisual = 0;
+            for (v = 0; v < pDepth->numVids; v++) {
+                pVisual = findVisual(pScreen, pDepth->vids[v]);
+                if (pVisual && (pFormat = PictureMatchVisual(pScreen,
+                                                             pDepth->depth,
+                                                             pVisual))) {
+                    pictVisual->visual = pVisual->vid;
+                    pictVisual->format = pFormat->id;
+                    if (client->swapped) {
+                        swapl(&pictVisual->visual);
+                        swapl(&pictVisual->format);
+                    }
+                    pictVisual++;
+                    nvisual++;
+                }
+            }
+            pictDepth->depth = pDepth->depth;
+            pictDepth->nPictVisuals = nvisual;
+            if (client->swapped) {
+                swaps(&pictDepth->nPictVisuals);
+            }
+            ndepth++;
+            pictDepth = (xPictDepth *) pictVisual;
+        }
+        pictScreen->nDepth = ndepth;
+        ps = GetPictureScreenIfSet(pScreen);
+        if (ps)
+            pictScreen->fallback = ps->fallback->id;
+        else
+            pictScreen->fallback = 0;
+        if (client->swapped) {
+            swapl(&pictScreen->nDepth);
+            swapl(&pictScreen->fallback);
+        }
+        pictScreen = (xPictScreen *) pictDepth;
     }
     pictSubpixel = (CARD32 *) pictScreen;
-    
-    for (s = 0; s < numSubpixel; s++)
-    {
-	pScreen = screenInfo.screens[s];
-	ps = GetPictureScreenIfSet(pScreen);
-	if (ps)
-	    *pictSubpixel = ps->subpixel;
-	else
-	    *pictSubpixel = SubPixelUnknown;
-	if (client->swapped)
-	{
-	    swapl (pictSubpixel);
-	}
-	++pictSubpixel;
+
+    for (s = 0; s < numSubpixel; s++) {
+        pScreen = screenInfo.screens[s];
+        ps = GetPictureScreenIfSet(pScreen);
+        if (ps)
+            *pictSubpixel = ps->subpixel;
+        else
+            *pictSubpixel = SubPixelUnknown;
+        if (client->swapped) {
+            swapl(pictSubpixel);
+        }
+        ++pictSubpixel;
     }
-    
-    if (client->swapped)
-    {
-	swaps (&reply->sequenceNumber);
-	swapl (&reply->length);
-	swapl (&reply->numFormats);
-	swapl (&reply->numScreens);
-	swapl (&reply->numDepths);
-	swapl (&reply->numVisuals);
-	swapl (&reply->numSubpixel);
+
+    if (client->swapped) {
+        swaps(&reply->sequenceNumber);
+        swapl(&reply->length);
+        swapl(&reply->numFormats);
+        swapl(&reply->numScreens);
+        swapl(&reply->numDepths);
+        swapl(&reply->numVisuals);
+        swapl(&reply->numSubpixel);
     }
     WriteToClient(client, rlength, reply);
-    free (reply);
-    return client->noClientException;
+    free(reply);
+    return
+#ifdef NEED_NEWER_XORG_VERSION
+           Success
+#else
+           (client->noClientException)
+#endif
+                                      ;
 }
 
 static int
-ProcRenderCreatePicture (ClientPtr client)
+ProcRenderCreatePicture(ClientPtr client)
 {
-    PicturePtr	    pPicture;
-    DrawablePtr	    pDrawable;
-    PictFormatPtr   pFormat;
-    int		    len;
-    int		    error;
+    PicturePtr pPicture;
+    DrawablePtr pDrawable;
+    PictFormatPtr pFormat;
+    int len, error
+#ifdef NEED_NEWER_XORG_VERSION
+                  , rc
+#endif
+                      ;
+
     REQUEST(xRenderCreatePictureReq);
 
     REQUEST_AT_LEAST_SIZE(xRenderCreatePictureReq);
 
     LEGAL_NEW_RESOURCE(stuff->pid, client);
+#ifdef NEED_NEWER_XORG_VERSION
+    rc = dixLookupDrawable(&pDrawable, stuff->drawable, client, 0,
+                           DixReadAccess | DixAddAccess);
+    if (rc != Success)
+        return rc;
+
+    rc = dixLookupResourceByType((void **) &pFormat, stuff->format,
+                                 PictFormatType, client, DixReadAccess);
+    if (rc != Success)
+        return rc;
+#else
     SECURITY_VERIFY_DRAWABLE(pDrawable, stuff->drawable, client,
-			     DixWriteAccess);
-    pFormat = (PictFormatPtr) SecurityLookupIDByType (client, 
-						      stuff->format,
-						      PictFormatType,
-						      DixReadAccess);
-    if (!pFormat)
-    {
-	client->errorValue = stuff->format;
-	return RenderErrBase + BadPictFormat;
+                             DixWriteAccess);
+    pFormat = (PictFormatPtr) SecurityLookupIDByType(client,
+                                                     stuff->format,
+                                                     PictFormatType,
+                                                     DixReadAccess);
+    if (!pFormat) {
+        client->errorValue = stuff->format;
+        return RenderErrBase + BadPictFormat;
     }
+#endif
     if (pFormat->depth != pDrawable->depth)
-	return BadMatch;
-    len = client->req_len - (sizeof(xRenderCreatePictureReq) >> 2);
+        return BadMatch;
+    len = client->req_len - bytes_to_int32(sizeof(xRenderCreatePictureReq));
     if (Ones(stuff->mask) != len)
-	return BadLength;
-    
-    pPicture = CreatePicture (stuff->pid,
-			      pDrawable,
-			      pFormat,
-			      stuff->mask,
-			      (XID *) (stuff + 1),
-			      client,
-			      &error);
+        return BadLength;
+
+    pPicture = CreatePicture(stuff->pid,
+                             pDrawable,
+                             pFormat,
+                             stuff->mask, (XID *) (stuff + 1), client, &error);
     if (!pPicture)
-	return error;
+        return error;
+
     nxagentCreatePicture(pPicture, stuff -> mask);
 
-    if (!AddResource (stuff->pid, PictureType, (void *)pPicture))
-	return BadAlloc;
+    if (!AddResource(stuff->pid, PictureType, (void *) pPicture))
+        return BadAlloc;
     return Success;
 }
 
 static int
-ProcRenderChangePicture (ClientPtr client)
+ProcRenderChangePicture(ClientPtr client)
 {
-    PicturePtr	    pPicture;
+    PicturePtr pPicture;
+
     REQUEST(xRenderChangePictureReq);
     int len;
     int error;
 
     REQUEST_AT_LEAST_SIZE(xRenderChangePictureReq);
-    VERIFY_PICTURE (pPicture, stuff->picture, client, DixWriteAccess,
-		    RenderErrBase + BadPicture);
+#ifdef NEED_NEWER_XORG_VERSION
+    VERIFY_PICTURE(pPicture, stuff->picture, client, DixSetAttrAccess);
+#else
+    VERIFY_PICTURE(pPicture, stuff->picture, client, DixWriteAccess,
+                   RenderErrBase + BadPicture);
+#endif
 
-    len = client->req_len - (sizeof(xRenderChangePictureReq) >> 2);
+    len = client->req_len - bytes_to_int32(sizeof(xRenderChangePictureReq));
     if (Ones(stuff->mask) != len)
-	return BadLength;
+        return BadLength;
     
-    error = ChangePicture (pPicture, stuff->mask, (XID *) (stuff + 1),
-			  (DevUnion *) 0, client);
+    error = ChangePicture(pPicture, stuff->mask, (XID *) (stuff + 1),
+                          (DevUnion *) 0, client);
     
     nxagentChangePicture(pPicture, stuff->mask);
 
@@ -439,32 +464,31 @@ ProcRenderChangePicture (ClientPtr client)
 }
 
 static int
-ProcRenderSetPictureClipRectangles (ClientPtr client)
+ProcRenderSetPictureClipRectangles(ClientPtr client)
 {
     REQUEST(xRenderSetPictureClipRectanglesReq);
-    PicturePtr	    pPicture;
-    int		    nr;
-    int		    result;
+    PicturePtr pPicture;
+    int nr;
+    int result;
 
     REQUEST_AT_LEAST_SIZE(xRenderSetPictureClipRectanglesReq);
-    VERIFY_PICTURE (pPicture, stuff->picture, client, DixWriteAccess,
-		    RenderErrBase + BadPicture);
+#ifdef NEED_NEWER_XORG_VERSION
+    VERIFY_PICTURE(pPicture, stuff->picture, client, DixSetAttrAccess);
+#else
+    VERIFY_PICTURE(pPicture, stuff->picture, client, DixWriteAccess,
+                   RenderErrBase + BadPicture);
+#endif
     if (!pPicture->pDrawable)
-        return BadDrawable;
+        return RenderErrBase + BadPicture;
 
-    /*
-     * The original code used sizeof(xRenderChangePictureReq).
-     * This was harmless, as both structures have the same size.
-     *
-     * nr = (client->req_len << 2) - sizeof(xRenderChangePictureReq);
-     */
     nr = (client->req_len << 2) - sizeof(xRenderSetPictureClipRectanglesReq);
     if (nr & 4)
-	return BadLength;
+        return BadLength;
     nr >>= 3;
-    result = SetPictureClipRects (pPicture, 
-				  stuff->xOrigin, stuff->yOrigin,
-				  nr, (xRectangle *) &stuff[1]);
+    result = SetPictureClipRects(pPicture,
+                                 stuff->xOrigin, stuff->yOrigin,
+                                 nr, (xRectangle *) &stuff[1]);
+
     nxagentChangePictureClip (pPicture,
                               CT_NONE,
                               nr,
@@ -472,10 +496,12 @@ ProcRenderSetPictureClipRectangles (ClientPtr client)
                               (int)stuff -> xOrigin,
                               (int)stuff -> yOrigin);
 
+#ifndef NEED_NEWER_XORG_VERSION
     if (client->noClientException != Success)
-        return(client->noClientException);
+        return (client->noClientException);
     else
-        return(result);
+#endif
+        return result;
 }
 
 /*
@@ -544,34 +570,50 @@ int nxagentCompositePredicate(PicturePtr pSrc, PicturePtr pDst)
 #endif
 
 static int
-ProcRenderComposite (ClientPtr client)
+ProcRenderComposite(ClientPtr client)
 {
-    PicturePtr	pSrc, pMask, pDst;
+    PicturePtr pSrc, pMask, pDst;
+
     REQUEST(xRenderCompositeReq);
 
     REQUEST_SIZE_MATCH(xRenderCompositeReq);
-    if (!PictOpValid (stuff->op))
-    {
-	client->errorValue = stuff->op;
-	return BadValue;
+    if (!PictOpValid(stuff->op)) {
+        client->errorValue = stuff->op;
+        return BadValue;
     }
-    VERIFY_PICTURE (pDst, stuff->dst, client, DixWriteAccess,
-		    RenderErrBase + BadPicture);
+    VERIFY_PICTURE(pDst, stuff->dst, client, DixWriteAccess
+#ifndef NEED_NEWER_XORG_VERSION
+                   , RenderErrBase + BadPicture
+#endif
+                  );
     if (!pDst->pDrawable)
         return BadDrawable;
-    VERIFY_PICTURE (pSrc, stuff->src, client, DixReadAccess,
-		    RenderErrBase + BadPicture);
-    VERIFY_ALPHA (pMask, stuff->mask, client, DixReadAccess,
-		  RenderErrBase + BadPicture);
+    VERIFY_PICTURE(pSrc, stuff->src, client, DixReadAccess
+#ifndef NEED_NEWER_XORG_VERSION
+                   , RenderErrBase + BadPicture
+#endif
+                  );
+    VERIFY_ALPHA(pMask, stuff->mask, client, DixReadAccess
+#ifndef NEED_NEWER_XORG_VERSION
+                 , RenderErrBase + BadPicture
+#endif
+                );
+    if ((pSrc->pDrawable &&
+         pSrc->pDrawable->pScreen != pDst->pDrawable->pScreen) || (pMask &&
+                                                                   pMask->
+                                                                   pDrawable &&
+                                                                   pDst->
+                                                                   pDrawable->
+                                                                   pScreen !=
+                                                                   pMask->
+                                                                   pDrawable->
+                                                                   pScreen))
+        return BadMatch;
 
-    if ((pSrc->pDrawable && pSrc->pDrawable->pScreen != pDst->pDrawable->pScreen) ||
-	(pMask && pMask->pDrawable && pDst->pDrawable->pScreen != pMask->pDrawable->pScreen))
-	return BadMatch;
-
-    ValidatePicture (pSrc);
+    ValidatePicture(pSrc);
     if (pMask)
-        ValidatePicture (pMask);
-    ValidatePicture (pDst);
+        ValidatePicture(pMask);
+    ValidatePicture(pDst);
 
     #ifdef NXAGENT_PICTURE_ALWAYS_POINTS_TO_VIRTUAL
 
@@ -583,18 +625,15 @@ ProcRenderComposite (ClientPtr client)
                       (void *) pSrc, (void *) pMask, (void *) pDst);
       #endif
 
-    CompositePicture (stuff->op,
-		      pSrc,
-		      pMask,
-		      pDst,
-		      stuff->xSrc,
-		      stuff->ySrc,
-		      stuff->xMask,
-		      stuff->yMask,
-		      stuff->xDst,
-		      stuff->yDst,
-		      stuff->width,
-		      stuff->height);
+      CompositePicture(stuff->op,
+                       pSrc,
+                       pMask,
+                       pDst,
+                       stuff->xSrc,
+                       stuff->ySrc,
+                       stuff->xMask,
+                       stuff->yMask,
+                       stuff->xDst, stuff->yDst, stuff->width, stuff->height);
     }
 
     #else
@@ -637,81 +676,95 @@ ProcRenderComposite (ClientPtr client)
                           (void *) pVirtualPixmapDst);
       #endif
 
-      CompositePicture (stuff->op,
-                        pVirtualPictureSrc,
-                        pVirtualPictureMask,
-                        pVirtualPictureDst,
-                        stuff->xSrc,
-                        stuff->ySrc,
-                        stuff->xMask,
-                        stuff->yMask,
-                        stuff->xDst,
-                        stuff->yDst,
-                        stuff->width,
-                        stuff->height);
+      CompositePicture(stuff->op,
+                       pVirtualPictureSrc,
+                       pVirtualPictureMask,
+                       pVirtualPictureDst,
+                       stuff->xSrc,
+                       stuff->ySrc,
+                       stuff->xMask,
+                       stuff->yMask,
+                       stuff->xDst,
+                       stuff->yDst,
+                       stuff->width,
+                       stuff->height);
       }
     }
 
     #endif
 
-    nxagentComposite (stuff -> op,
-                      pSrc,
-                      pMask,
-                      pDst,
-                      stuff -> xSrc,
-                      stuff -> ySrc,
-                      stuff -> xMask,
-                      stuff -> yMask,
-                      stuff -> xDst,
-                      stuff -> yDst,
-                      stuff -> width,
-                      stuff -> height);
+    nxagentComposite(stuff -> op,
+                     pSrc,
+                     pMask,
+                     pDst,
+                     stuff -> xSrc,
+                     stuff -> ySrc,
+                     stuff -> xMask,
+                     stuff -> yMask,
+                     stuff -> xDst,
+                     stuff -> yDst,
+                     stuff -> width,
+                     stuff -> height);
 
     return Success;
 }
 
 static int
-ProcRenderTrapezoids (ClientPtr client)
+ProcRenderTrapezoids(ClientPtr client)
 {
-    int		ntraps;
-    PicturePtr	pSrc, pDst;
-    PictFormatPtr   pFormat;
+    int
+#ifdef NEED_NEWER_XORG_VERSION
+         rc,
+#endif
+             ntraps;
+    PicturePtr pSrc, pDst;
+    PictFormatPtr pFormat;
+
     REQUEST(xRenderTrapezoidsReq);
 
     REQUEST_AT_LEAST_SIZE(xRenderTrapezoidsReq);
-    if (!PictOpValid (stuff->op))
-    {
-	client->errorValue = stuff->op;
-	return BadValue;
+    if (!PictOpValid(stuff->op)) {
+        client->errorValue = stuff->op;
+        return BadValue;
     }
-    VERIFY_PICTURE (pSrc, stuff->src, client, DixReadAccess,
-		    RenderErrBase + BadPicture);
-    VERIFY_PICTURE (pDst, stuff->dst, client, DixWriteAccess,
-		    RenderErrBase + BadPicture);
+    VERIFY_PICTURE(pSrc, stuff->src, client, DixReadAccess
+#ifndef NEED_NEWER_XORG_VERSION
+                   , RenderErrBase + BadPicture
+#endif
+                  );
+    VERIFY_PICTURE(pDst, stuff->dst, client, DixWriteAccess
+#ifndef NEED_NEWER_XORG_VERSION
+                   , RenderErrBase + BadPicture
+#endif
+                  );
     if (!pDst->pDrawable)
         return BadDrawable;
     if (pSrc->pDrawable && pSrc->pDrawable->pScreen != pDst->pDrawable->pScreen)
-	return BadMatch;
-    if (stuff->maskFormat)
-    {
-	pFormat = (PictFormatPtr) SecurityLookupIDByType (client,
-							  stuff->maskFormat,
-							  PictFormatType,
-							  DixReadAccess);
-	if (!pFormat)
-	{
-	    client->errorValue = stuff->maskFormat;
-	    return RenderErrBase + BadPictFormat;
-	}
+        return BadMatch;
+    if (stuff->maskFormat) {
+#ifdef NEED_NEWER_XORG_VERSION
+        rc = dixLookupResourceByType((void **) &pFormat, stuff->maskFormat,
+                                     PictFormatType, client, DixReadAccess);
+        if (rc != Success)
+            return rc;
+#else
+        pFormat = (PictFormatPtr) SecurityLookupIDByType(client,
+                                                         stuff->maskFormat,
+                                                         PictFormatType,
+                                                         DixReadAccess);
+        if (!pFormat) {
+            client->errorValue = stuff->maskFormat;
+            return RenderErrBase + BadPictFormat;
+        }
+#endif
     }
     else
-	pFormat = 0;
-    ntraps = (client->req_len << 2) - sizeof (xRenderTrapezoidsReq);
-    if (ntraps % sizeof (xTrapezoid))
-	return BadLength;
-    ntraps /= sizeof (xTrapezoid);
-    if (ntraps)
-    {
+        pFormat = 0;
+    ntraps = (client->req_len << 2) - sizeof(xRenderTrapezoidsReq);
+    if (ntraps % sizeof(xTrapezoid))
+        return BadLength;
+    ntraps /= sizeof(xTrapezoid);
+    if (ntraps) {
       if (pFormat != NULL)
       {
         nxagentTrapezoidExtents = (BoxPtr) malloc(sizeof(BoxRec));
@@ -721,14 +774,14 @@ ProcRenderTrapezoids (ClientPtr client)
 
       if (nxagentCompositePredicate(pSrc, pDst) == 1)
       {
-	CompositeTrapezoids (stuff->op, pSrc, pDst, pFormat,
-			     stuff->xSrc, stuff->ySrc,
-			     ntraps, (xTrapezoid *) &stuff[1]);
+        CompositeTrapezoids(stuff->op, pSrc, pDst, pFormat,
+                            stuff->xSrc, stuff->ySrc,
+                            ntraps, (xTrapezoid *) &stuff[1]);
       }
 
-      nxagentTrapezoids (stuff->op, pSrc, pDst, pFormat,
-                             stuff->xSrc, stuff->ySrc,
-                                 ntraps, (xTrapezoid *) &stuff[1]);
+      nxagentTrapezoids(stuff->op, pSrc, pDst, pFormat,
+                        stuff->xSrc, stuff->ySrc,
+                        ntraps, (xTrapezoid *) &stuff[1]);
 
       if (nxagentTrapezoidExtents != NullBox)
       {
@@ -738,55 +791,79 @@ ProcRenderTrapezoids (ClientPtr client)
       }
     }
 
-    return client->noClientException;
+    return
+#ifdef NEED_NEWER_XORG_VERSION
+           Success
+#else
+           (client->noClientException)
+#endif
+                                      ;
 }
 
 static int
-ProcRenderCreateGlyphSet (ClientPtr client)
+ProcRenderCreateGlyphSet(ClientPtr client)
 {
-    GlyphSetPtr	    glyphSet;
-    PictFormatPtr   format;
-    int		    f;
+    GlyphSetPtr glyphSet;
+    PictFormatPtr format;
+    int
+#ifdef NEED_NEWER_XORG_VERSION
+        rc,
+#endif
+            f;
+
     REQUEST(xRenderCreateGlyphSetReq);
 
     REQUEST_SIZE_MATCH(xRenderCreateGlyphSetReq);
 
     LEGAL_NEW_RESOURCE(stuff->gsid, client);
-    format = (PictFormatPtr) SecurityLookupIDByType (client,
-						     stuff->format,
-						     PictFormatType,
-						     DixReadAccess);
-    if (!format)
-    {
-	client->errorValue = stuff->format;
-	return RenderErrBase + BadPictFormat;
+#ifdef NEED_NEWER_XORG_VERSION
+    rc = dixLookupResourceByType((void **) &format, stuff->format,
+                                 PictFormatType, client, DixReadAccess);
+    if (rc != Success)
+        return rc;
+#else
+    format = (PictFormatPtr) SecurityLookupIDByType(client,
+                                                    stuff->format,
+                                                    PictFormatType,
+                                                    DixReadAccess);
+    if (!format) {
+        client->errorValue = stuff->format;
+        return RenderErrBase + BadPictFormat;
     }
+#endif
     switch (format->depth) {
     case 1:
-	f = GlyphFormat1;
-	break;
+        f = GlyphFormat1;
+        break;
     case 4:
-	f = GlyphFormat4;
-	break;
+        f = GlyphFormat4;
+        break;
     case 8:
-	f = GlyphFormat8;
-	break;
+        f = GlyphFormat8;
+        break;
     case 16:
-	f = GlyphFormat16;
-	break;
+        f = GlyphFormat16;
+        break;
     case 32:
-	f = GlyphFormat32;
-	break;
+        f = GlyphFormat32;
+        break;
     default:
-	return BadMatch;
+        return BadMatch;
     }
     if (format->type != PictTypeDirect)
-	return BadMatch;
-    glyphSet = AllocateGlyphSet (f, format);
+        return BadMatch;
+    glyphSet = AllocateGlyphSet(f, format);
     if (!glyphSet)
-	return BadAlloc;
-    if (!AddResource (stuff->gsid, GlyphSetType, (void *)glyphSet))
-	return BadAlloc;
+        return BadAlloc;
+#ifdef NEED_NEWER_XORG_VERSION
+    /* security creation/labeling check */
+    rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->gsid, GlyphSetType,
+                  glyphSet, RT_NONE, NULL, DixCreateAccess);
+    if (rc != Success)
+        return rc;
+#endif
+    if (!AddResource(stuff->gsid, GlyphSetType, (void *) glyphSet))
+        return BadAlloc;
 
     nxagentCreateGlyphSet(glyphSet);
 
@@ -794,90 +871,143 @@ ProcRenderCreateGlyphSet (ClientPtr client)
 }
 
 static int
-ProcRenderReferenceGlyphSet (ClientPtr client)
+ProcRenderReferenceGlyphSet(ClientPtr client)
 {
-    GlyphSetPtr     glyphSet;
+    GlyphSetPtr glyphSet;
+#ifdef NEED_NEWER_XORG_VERSION
+    int rc;
+#endif
+
     REQUEST(xRenderReferenceGlyphSetReq);
 
     REQUEST_SIZE_MATCH(xRenderReferenceGlyphSetReq);
 
     LEGAL_NEW_RESOURCE(stuff->gsid, client);
 
-    glyphSet = (GlyphSetPtr) SecurityLookupIDByType (client,
-						     stuff->existing,
-						     GlyphSetType,
-						     DixWriteAccess);
-    if (!glyphSet)
-    {
-	client->errorValue = stuff->existing;
-	return RenderErrBase + BadGlyphSet;
+#ifdef NEED_NEWER_XORG_VERSION
+    rc = dixLookupResourceByType((void **) &glyphSet, stuff->existing,
+                                 GlyphSetType, client, DixGetAttrAccess);
+    if (rc != Success) {
+        client->errorValue = stuff->existing;
+        return rc;
     }
+#else
+    glyphSet = (GlyphSetPtr) SecurityLookupIDByType(client,
+                                                    stuff->existing,
+                                                    GlyphSetType,
+                                                    DixWriteAccess);
+    if (!glyphSet) {
+        client->errorValue = stuff->existing;
+        return RenderErrBase + BadGlyphSet;
+    }
+#endif
     glyphSet->refcnt++;
 
     nxagentReferenceGlyphSet(glyphSet);
 
-    if (!AddResource (stuff->gsid, GlyphSetType, (void *)glyphSet))
-	return BadAlloc;
-    return client->noClientException;
+    if (!AddResource(stuff->gsid, GlyphSetType, (void *) glyphSet))
+        return BadAlloc;
+    return
+#ifdef NEED_NEWER_XORG_VERSION
+           Success
+#else
+           (client->noClientException)
+#endif
+                                      ;
 }
 
 static int
-ProcRenderFreeGlyphSet (ClientPtr client)
+ProcRenderFreeGlyphSet(ClientPtr client)
 {
-    GlyphSetPtr     glyphSet;
+    GlyphSetPtr glyphSet;
+#ifdef NEED_NEWER_XORG_VERSION
+    int rc;
+#endif
+
     REQUEST(xRenderFreeGlyphSetReq);
 
     REQUEST_SIZE_MATCH(xRenderFreeGlyphSetReq);
-    glyphSet = (GlyphSetPtr) SecurityLookupIDByType (client,
-						     stuff->glyphset,
-						     GlyphSetType,
-						     DixDestroyAccess);
-    if (!glyphSet)
-    {
-	client->errorValue = stuff->glyphset;
-	return RenderErrBase + BadGlyphSet;
+#ifdef NEED_NEWER_XORG_VERSION
+    rc = dixLookupResourceByType((void **) &glyphSet, stuff->glyphset,
+                                 GlyphSetType, client, DixDestroyAccess);
+    if (rc != Success) {
+        client->errorValue = stuff->glyphset;
+        return rc;
     }
+#else
+    glyphSet = (GlyphSetPtr) SecurityLookupIDByType(client,
+                                                    stuff->glyphset,
+                                                    GlyphSetType,
+                                                    DixDestroyAccess);
+    if (!glyphSet) {
+        client->errorValue = stuff->glyphset;
+        return RenderErrBase + BadGlyphSet;
+    }
+#endif
 
     nxagentFreeGlyphSet(glyphSet);
 
-    FreeResource (stuff->glyphset, RT_NONE);
-    return client->noClientException;
+    FreeResource(stuff->glyphset, RT_NONE);
+    return
+#ifdef NEED_NEWER_XORG_VERSION
+           Success
+#else
+           (client->noClientException)
+#endif
+                                      ;
 }
 
 static int
-ProcRenderFreeGlyphs (ClientPtr client)
+ProcRenderFreeGlyphs(ClientPtr client)
 {
     REQUEST(xRenderFreeGlyphsReq);
-    GlyphSetPtr     glyphSet;
-    int		    nglyph;
-    CARD32	    *gids;
-    CARD32	    glyph;
+    GlyphSetPtr glyphSet;
+    int
+#ifdef NEED_NEWER_XORG_VERSION
+        rc,
+#endif
+            nglyph;
+    CARD32 *gids;
+    CARD32 glyph;
 
     REQUEST_AT_LEAST_SIZE(xRenderFreeGlyphsReq);
-    glyphSet = (GlyphSetPtr) SecurityLookupIDByType (client,
-						     stuff->glyphset,
-						     GlyphSetType,
-						     DixWriteAccess);
-    if (!glyphSet)
-    {
-	client->errorValue = stuff->glyphset;
-	return RenderErrBase + BadGlyphSet;
+#ifdef NEED_NEWER_XORG_VERSION
+    rc = dixLookupResourceByType((void **) &glyphSet, stuff->glyphset,
+                                 GlyphSetType, client, DixRemoveAccess);
+    if (rc != Success) {
+        client->errorValue = stuff->glyphset;
+        return rc;
     }
-    nglyph = ((client->req_len << 2) - sizeof (xRenderFreeGlyphsReq)) >> 2;
+#else
+    glyphSet = (GlyphSetPtr) SecurityLookupIDByType(client,
+                                                    stuff->glyphset,
+                                                    GlyphSetType,
+                                                    DixWriteAccess);
+    if (!glyphSet) {
+        client->errorValue = stuff->glyphset;
+        return RenderErrBase + BadGlyphSet;
+    }
+#endif
+    nglyph =
+        bytes_to_int32((client->req_len << 2) - sizeof(xRenderFreeGlyphsReq));
     gids = (CARD32 *) (stuff + 1);
 
     nxagentFreeGlyphs(glyphSet, gids, nglyph);
 
-    while (nglyph-- > 0)
-    {
-	glyph = *gids++;
-	if (!DeleteGlyph (glyphSet, glyph))
-	{
-	    client->errorValue = glyph;
-	    return RenderErrBase + BadGlyph;
-	}
+    while (nglyph-- > 0) {
+        glyph = *gids++;
+        if (!DeleteGlyph(glyphSet, glyph)) {
+            client->errorValue = glyph;
+            return RenderErrBase + BadGlyph;
+        }
     }
-    return client->noClientException;
+    return
+#ifdef NEED_NEWER_XORG_VERSION
+           Success
+#else
+           (client->noClientException)
+#endif
+                                      ;
 }
 
 typedef struct XGlyphElt8{
@@ -889,24 +1019,24 @@ typedef struct XGlyphElt8{
 } XGlyphElt8;
 
 static int
-ProcRenderCompositeGlyphs (ClientPtr client)
+ProcRenderCompositeGlyphs(ClientPtr client)
 {
-    GlyphSetPtr     glyphSet;
-    GlyphSet	    gs;
-    PicturePtr      pSrc, pDst;
-    PictFormatPtr   pFormat;
-    GlyphListRec    listsLocal[NLOCALDELTA];
-    GlyphListPtr    lists, listsBase;
-    GlyphPtr	    glyphsLocal[NLOCALGLYPH];
-    Glyph	    glyph;
-    GlyphPtr	    *glyphs, *glyphsBase;
-    xGlyphElt	    *elt;
-    CARD8	    *buffer, *end;
-    int		    nglyph;
-    int		    nlist;
-    int		    space;
-    int		    size;
-    int		    n;
+    GlyphSetPtr glyphSet;
+    GlyphSet gs;
+    PicturePtr pSrc, pDst;
+    PictFormatPtr pFormat;
+    GlyphListRec listsLocal[NLOCALDELTA];
+    GlyphListPtr lists, listsBase;
+    GlyphPtr glyphsLocal[NLOCALGLYPH];
+    Glyph glyph;
+    GlyphPtr *glyphs, *glyphsBase;
+    xGlyphElt *elt;
+    CARD8 *buffer, *end;
+    int nglyph;
+    int nlist;
+    int space;
+    int size;
+    int rc, n;
     
     XGlyphElt8      *elements, *elementsBase;
 
@@ -915,87 +1045,106 @@ ProcRenderCompositeGlyphs (ClientPtr client)
     REQUEST_AT_LEAST_SIZE(xRenderCompositeGlyphsReq);
 
     switch (stuff->renderReqType) {
-    default:			    size = 1; break;
-    case X_RenderCompositeGlyphs16: size = 2; break;
-    case X_RenderCompositeGlyphs32: size = 4; break;
+    default:
+        size = 1;
+        break;
+    case X_RenderCompositeGlyphs16:
+        size = 2;
+        break;
+    case X_RenderCompositeGlyphs32:
+        size = 4;
+        break;
     }
-	    
-    if (!PictOpValid (stuff->op))
-    {
-	client->errorValue = stuff->op;
-	return BadValue;
+
+    if (!PictOpValid(stuff->op)) {
+        client->errorValue = stuff->op;
+        return BadValue;
     }
-    VERIFY_PICTURE (pSrc, stuff->src, client, DixReadAccess,
-		    RenderErrBase + BadPicture);
-    VERIFY_PICTURE (pDst, stuff->dst, client, DixWriteAccess,
-		    RenderErrBase + BadPicture);
+    VERIFY_PICTURE(pSrc, stuff->src, client, DixReadAccess
+#ifndef NEED_NEWER_XORG_VERSION
+                   , RenderErrBase + BadPicture
+#endif
+                  );
+    VERIFY_PICTURE(pDst, stuff->dst, client, DixWriteAccess
+#ifndef NEED_NEWER_XORG_VERSION
+                   , RenderErrBase + BadPicture
+#endif
+                  );
     if (!pDst->pDrawable)
         return BadDrawable;
     if (pSrc->pDrawable && pSrc->pDrawable->pScreen != pDst->pDrawable->pScreen)
-	return BadMatch;
-    if (stuff->maskFormat)
-    {
-	pFormat = (PictFormatPtr) SecurityLookupIDByType (client,
-							  stuff->maskFormat,
-							  PictFormatType,
-							  DixReadAccess);
-	if (!pFormat)
-	{
-	    client->errorValue = stuff->maskFormat;
-	    return RenderErrBase + BadPictFormat;
-	}
+        return BadMatch;
+    if (stuff->maskFormat) {
+#ifdef NEED_NEWER_XORG_VERSION
+        rc = dixLookupResourceByType((void **) &pFormat, stuff->maskFormat,
+                                     PictFormatType, client, DixReadAccess);
+        if (rc != Success)
+            return rc;
+#else
+        pFormat = (PictFormatPtr) SecurityLookupIDByType(client,
+                                                         stuff->maskFormat,
+                                                         PictFormatType,
+                                                         DixReadAccess);
+        if (!pFormat) {
+            client->errorValue = stuff->maskFormat;
+            return RenderErrBase + BadPictFormat;
+        }
+#endif
     }
     else
-	pFormat = 0;
+        pFormat = 0;
 
-    glyphSet = (GlyphSetPtr) SecurityLookupIDByType (client,
-						     stuff->glyphset,
-						     GlyphSetType,
-						     DixReadAccess);
-    if (!glyphSet)
-    {
-	client->errorValue = stuff->glyphset;
-	return RenderErrBase + BadGlyphSet;
+#ifdef NEED_NEWER_XORG_VERSION
+    rc = dixLookupResourceByType((void **) &glyphSet, stuff->glyphset,
+                                 GlyphSetType, client, DixUseAccess);
+    if (rc != Success)
+        return rc;
+#else
+    glyphSet = (GlyphSetPtr) SecurityLookupIDByType(client,
+                                                    stuff->glyphset,
+                                                    GlyphSetType,
+                                                    DixReadAccess);
+    if (!glyphSet) {
+        client->errorValue = stuff->glyphset;
+        return RenderErrBase + BadGlyphSet;
     }
+#endif
 
     buffer = (CARD8 *) (stuff + 1);
     end = (CARD8 *) stuff + (client->req_len << 2);
     nglyph = 0;
     nlist = 0;
-    while (buffer + sizeof (xGlyphElt) < end)
-    {
-	elt = (xGlyphElt *) buffer;
-	buffer += sizeof (xGlyphElt);
-	
-	if (elt->len == 0xff)
-	{
-	    buffer += 4;
-	}
-	else
-	{
-	    nlist++;
-	    nglyph += elt->len;
-	    space = size * elt->len;
-	    if (space & 3)
-		space += 4 - (space & 3);
-	    buffer += space;
-	}
+    while (buffer + sizeof(xGlyphElt) < end) {
+        elt = (xGlyphElt *) buffer;
+        buffer += sizeof(xGlyphElt);
+
+        if (elt->len == 0xff) {
+            buffer += 4;
+        }
+        else {
+            nlist++;
+            nglyph += elt->len;
+            space = size * elt->len;
+            if (space & 3)
+                space += 4 - (space & 3);
+            buffer += space;
+        }
     }
     if (nglyph <= NLOCALGLYPH)
-	glyphsBase = glyphsLocal;
-    else
-    {
-	glyphsBase = (GlyphPtr *) malloc (nglyph * sizeof (GlyphPtr));
-	if (!glyphsBase)
-	    return BadAlloc;
+        glyphsBase = glyphsLocal;
+    else {
+        glyphsBase = xallocarray(nglyph, sizeof(GlyphPtr));
+        if (!glyphsBase)
+            return BadAlloc;
     }
     if (nlist <= NLOCALDELTA)
-	listsBase = listsLocal;
-    else
-    {
-	listsBase = (GlyphListPtr) malloc (nlist * sizeof (GlyphListRec));
-	if (!listsBase)
-	    return BadAlloc;
+        listsBase = listsLocal;
+    else {
+        listsBase = xallocarray(nlist, sizeof(GlyphListRec));
+        if (!listsBase) {
+            rc = BadAlloc;
+            goto bail;
+        }
     }
 
     elementsBase = malloc(nlist * sizeof(XGlyphElt8));
@@ -1006,43 +1155,43 @@ ProcRenderCompositeGlyphs (ClientPtr client)
     glyphs = glyphsBase;
     lists = listsBase;
     elements = elementsBase;
-    while (buffer + sizeof (xGlyphElt) < end)
-    {
-	elt = (xGlyphElt *) buffer;
-	buffer += sizeof (xGlyphElt);
-	
-	if (elt->len == 0xff)
-	{
+    while (buffer + sizeof(xGlyphElt) < end) {
+        elt = (xGlyphElt *) buffer;
+        buffer += sizeof(xGlyphElt);
+
+        if (elt->len == 0xff) {
             #ifdef DEBUG
             fprintf(stderr, "ProcRenderCompositeGlyphs: Glyphset change with base size [%d].\n",
                         size);
             #endif
 
-	    if (buffer + sizeof (GlyphSet) < end)
-	    {
+	    if (buffer + sizeof(GlyphSet) < end) {
                 memcpy(&gs, buffer, sizeof(GlyphSet));
-		glyphSet = (GlyphSetPtr) SecurityLookupIDByType (client,
-								 gs,
-								 GlyphSetType,
-								 DixReadAccess);
-		if (!glyphSet)
-		{
-		    client->errorValue = gs;
-		    if (glyphsBase != glyphsLocal)
-			free (glyphsBase);
-		    if (listsBase != listsLocal)
-			free (listsBase);
-		    return RenderErrBase + BadGlyphSet;
-		}
-	    }
-	    buffer += 4;
-	}
-	else
-	{
-	    lists->xOff = elt->deltax;
-	    lists->yOff = elt->deltay;
-	    lists->format = glyphSet->format;
-	    lists->len = 0;
+#ifdef NEED_NEWER_XORG_VERSION
+                rc = dixLookupResourceByType((void **) &glyphSet, gs,
+                                             GlyphSetType, client,
+                                             DixUseAccess);
+                if (rc != Success)
+                    goto bail;
+#else
+                glyphSet = (GlyphSetPtr) SecurityLookupIDByType(client,
+                                                                gs,
+                                                                GlyphSetType,
+                                                                DixReadAccess);
+                if (!glyphSet) {
+                    client->errorValue = gs;
+                    rc = RenderErrBase + BadGlyphSet;
+                    goto bail;
+                }
+#endif
+            }
+            buffer += 4;
+        }
+        else {
+            lists->xOff = elt->deltax;
+            lists->yOff = elt->deltay;
+            lists->format = glyphSet->format;
+            lists->len = 0;
 
             if (glyphSet -> remoteID == 0)
             {
@@ -1059,37 +1208,39 @@ ProcRenderCompositeGlyphs (ClientPtr client)
             elements -> nchars = elt->len;
             elements -> xOff = elt->deltax;
             elements -> yOff = elt->deltay;
-	    n = elt->len;
-	    while (n--)
-	    {
-		if (buffer + size <= end)
-		{
-		    switch (size) {
-		    case 1:
-			glyph = *((CARD8 *)buffer); break;
-		    case 2:
-			glyph = *((CARD16 *)buffer); break;
-		    case 4:
-		    default:
-			glyph = *((CARD32 *)buffer); break;
-		    }
-		    if ((*glyphs = FindGlyph (glyphSet, glyph)))
-		    {
-			lists->len++;
-			glyphs++;
-		    }
-		}
-		buffer += size;
-	    }
-	    space = size * elt->len;
-	    if (space & 3)
-		buffer += 4 - (space & 3);
-	    lists++;
+            n = elt->len;
+            while (n--) {
+                if (buffer + size <= end) {
+                    switch (size) {
+                    case 1:
+                        glyph = *((CARD8 *) buffer);
+                        break;
+                    case 2:
+                        glyph = *((CARD16 *) buffer);
+                        break;
+                    case 4:
+                    default:
+                        glyph = *((CARD32 *) buffer);
+                        break;
+                    }
+                    if ((*glyphs = FindGlyph(glyphSet, glyph))) {
+                        lists->len++;
+                        glyphs++;
+                    }
+                }
+                buffer += size;
+            }
+            space = size * elt->len;
+            if (space & 3)
+                buffer += 4 - (space & 3);
+            lists++;
             elements++;
-	}
+        }
     }
-    if (buffer > end)
-	return BadLength;
+    if (buffer > end) {
+        rc = BadLength;
+        goto bail;
+    }
 
     /*
      * We need to know the glyphs extents to synchronize
@@ -1123,58 +1274,63 @@ ProcRenderCompositeGlyphs (ClientPtr client)
                       (void *) pSrc, (void *) pDst);
       #endif
 
-      CompositeGlyphs(stuff -> op,
+      CompositeGlyphs(stuff->op,
                       pSrc,
                       pDst,
                       pFormat,
-                      stuff -> xSrc,
-                      stuff -> ySrc,
-                      nlist,
-                      listsBase,
-                      glyphsBase);
+                      stuff -> xSrc, stuff -> ySrc, nlist, listsBase, glyphsBase);
     }
+    rc = Success;
 
     free(nxagentGlyphsExtents);
     nxagentGlyphsExtents = NullBox;
 
+ bail:
+
     if (glyphsBase != glyphsLocal)
-	free (glyphsBase);
+        free(glyphsBase);
     if (listsBase != listsLocal)
-	free (listsBase);
+        free(listsBase);
     
     free(elementsBase);
 
-    return client->noClientException;
+    return
+#ifdef NEED_NEWER_XORG_VERSION
+           rc
+#else
+           Success == rc ? (client->noClientException) : rc
+#endif
+                                                           ;
 }
 
 static int
-ProcRenderFillRectangles (ClientPtr client)
+ProcRenderFillRectangles(ClientPtr client)
 {
-    PicturePtr	    pDst;
-    int             things;
+    PicturePtr pDst;
+    int things;
+
     REQUEST(xRenderFillRectanglesReq);
-    
-    REQUEST_AT_LEAST_SIZE (xRenderFillRectanglesReq);
-    if (!PictOpValid (stuff->op))
-    {
-	client->errorValue = stuff->op;
-	return BadValue;
+
+    REQUEST_AT_LEAST_SIZE(xRenderFillRectanglesReq);
+    if (!PictOpValid(stuff->op)) {
+        client->errorValue = stuff->op;
+        return BadValue;
     }
-    VERIFY_PICTURE (pDst, stuff->dst, client, DixWriteAccess,
-		    RenderErrBase + BadPicture);
+    VERIFY_PICTURE(pDst, stuff->dst, client, DixWriteAccess
+#ifndef NEED_NEWER_XORG_VERSION
+                   , RenderErrBase + BadPicture
+#endif
+                  );
     if (!pDst->pDrawable)
         return BadDrawable;
-    
+
     things = (client->req_len << 2) - sizeof(xRenderFillRectanglesReq);
     if (things & 4)
-	return(BadLength);
+        return BadLength;
     things >>= 3;
-    
-    CompositeRects (stuff->op,
-		    pDst,
-		    &stuff->color,
-		    things,
-		    (xRectangle *) &stuff[1]);
+
+    CompositeRects(stuff->op,
+                   pDst, &stuff->color, things, (xRectangle *) &stuff[1]);
 
     ValidatePicture (pDst);
     nxagentCompositeRects(stuff -> op,
@@ -1182,194 +1338,189 @@ ProcRenderFillRectangles (ClientPtr client)
                           &stuff -> color,
                           things,
                           (xRectangle *) &stuff[1]);
-    
-    return client->noClientException;
+
+    return
+#ifdef NEED_NEWER_XORG_VERSION
+           Success
+#else
+           (client->noClientException)
+#endif
+                                      ;
 }
 
 static int
-ProcRenderCreateCursor (ClientPtr client)
+ProcRenderCreateCursor(ClientPtr client)
 {
     REQUEST(xRenderCreateCursorReq);
-    PicturePtr	    pSrc;
-    ScreenPtr	    pScreen;
-    unsigned short  width, height;
-    CARD32	    *argbbits, *argb;
-    unsigned char   *srcbits, *srcline;
-    unsigned char   *mskbits, *mskline;
-    int		    stride;
-    int		    x, y;
-    int		    nbytes_mono;
+    PicturePtr pSrc;
+    ScreenPtr pScreen;
+    unsigned short width, height;
+    CARD32 *argbbits, *argb;
+    unsigned char *srcbits, *srcline;
+    unsigned char *mskbits, *mskline;
+    int stride;
+    int x, y;
+    int nbytes_mono;
     CursorMetricRec cm;
-    CursorPtr	    pCursor;
-    CARD32	    twocolor[3];
-    int		    ncolor;
+    CursorPtr pCursor;
+    CARD32 twocolor[3];
+    int
+#ifdef NEED_NEWER_XORG_VERSION
+        rc,
+#endif
+            ncolor;
 
     RealizeCursorProcPtr saveRealizeCursor;
 
-    REQUEST_SIZE_MATCH (xRenderCreateCursorReq);
+    REQUEST_SIZE_MATCH(xRenderCreateCursorReq);
     LEGAL_NEW_RESOURCE(stuff->cid, client);
-    
-    VERIFY_PICTURE (pSrc, stuff->src, client, DixReadAccess,
-		    RenderErrBase + BadPicture);
+
+    VERIFY_PICTURE(pSrc, stuff->src, client, DixReadAccess
+#ifndef NEED_NEWER_XORG_VERSION
+                   , RenderErrBase + BadPicture
+#endif
+                  );
     if (!pSrc->pDrawable)
         return BadDrawable;
     pScreen = pSrc->pDrawable->pScreen;
     width = pSrc->pDrawable->width;
     height = pSrc->pDrawable->height;
-    if (height && width > UINT32_MAX/(height*sizeof(CARD32)))
-	return BadAlloc;
-    if ( stuff->x > width 
-      || stuff->y > height )
-	return (BadMatch);
-    argbbits = malloc (width * height * sizeof (CARD32));
+    if (height && width > UINT32_MAX / (height * sizeof(CARD32)))
+        return BadAlloc;
+    if (stuff->x > width || stuff->y > height)
+        return BadMatch;
+    argbbits = malloc(width * height * sizeof(CARD32));
     if (!argbbits)
-	return (BadAlloc);
-    
+        return BadAlloc;
+
     stride = BitmapBytePad(width);
-    nbytes_mono = stride*height;
-    srcbits = (unsigned char *)malloc(nbytes_mono);
-    if (!srcbits)
-    {
-	free (argbbits);
-	return (BadAlloc);
+    nbytes_mono = stride * height;
+    srcbits = calloc(1, nbytes_mono);
+    if (!srcbits) {
+        free(argbbits);
+        return BadAlloc;
     }
-    mskbits = (unsigned char *)malloc(nbytes_mono);
-    if (!mskbits)
-    {
-	free(argbbits);
-	free(srcbits);
-	return (BadAlloc);
+    mskbits = calloc(1, nbytes_mono);
+    if (!mskbits) {
+        free(argbbits);
+        free(srcbits);
+        return BadAlloc;
     }
-    bzero ((char *) mskbits, nbytes_mono);
-    bzero ((char *) srcbits, nbytes_mono);
 
-    if (pSrc->format == PICT_a8r8g8b8)
-    {
-	(*pScreen->GetImage) (pSrc->pDrawable,
-			      0, 0, width, height, ZPixmap,
-			      0xffffffff, (void *) argbbits);
+    if (pSrc->format == PICT_a8r8g8b8) {
+        (*pScreen->GetImage) (pSrc->pDrawable,
+                              0, 0, width, height, ZPixmap,
+                              0xffffffff, (void *) argbbits);
     }
-    else
-    {
-	PixmapPtr	pPixmap;
-	PicturePtr	pPicture;
-	PictFormatPtr	pFormat;
-	int		error;
+    else {
+        PixmapPtr pPixmap;
+        PicturePtr pPicture;
+        PictFormatPtr pFormat;
+        int error;
 
-	pFormat = PictureMatchFormat (pScreen, 32, PICT_a8r8g8b8);
-	if (!pFormat)
-	{
-	    free (argbbits);
-	    free (srcbits);
-	    free (mskbits);
-	    return (BadImplementation);
-	}
-	pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height, 32,
-	                                   CREATE_PIXMAP_USAGE_SCRATCH);
-	if (!pPixmap)
-	{
-	    free (argbbits);
-	    free (srcbits);
-	    free (mskbits);
-	    return (BadAlloc);
-	}
-	pPicture = CreatePicture (0, &pPixmap->drawable, pFormat, 0, 0, 
-				  client, &error);
-	if (!pPicture)
-	{
-	    free (argbbits);
-	    free (srcbits);
-	    free (mskbits);
-	    return error;
-	}
-	(*pScreen->DestroyPixmap) (pPixmap);
-	CompositePicture (PictOpSrc,
-			  pSrc, 0, pPicture,
-			  0, 0, 0, 0, 0, 0, width, height);
-	(*pScreen->GetImage) (pPicture->pDrawable,
-			      0, 0, width, height, ZPixmap,
-			      0xffffffff, (void *) argbbits);
-	FreePicture (pPicture, 0);
+        pFormat = PictureMatchFormat(pScreen, 32, PICT_a8r8g8b8);
+        if (!pFormat) {
+            free(argbbits);
+            free(srcbits);
+            free(mskbits);
+            return BadImplementation;
+        }
+        pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height, 32,
+                                            CREATE_PIXMAP_USAGE_SCRATCH);
+        if (!pPixmap) {
+            free(argbbits);
+            free(srcbits);
+            free(mskbits);
+            return BadAlloc;
+        }
+        pPicture = CreatePicture(0, &pPixmap->drawable, pFormat, 0, 0,
+                                 client, &error);
+        if (!pPicture) {
+            free(argbbits);
+            free(srcbits);
+            free(mskbits);
+            return error;
+        }
+        (*pScreen->DestroyPixmap) (pPixmap);
+        CompositePicture(PictOpSrc,
+                         pSrc, 0, pPicture, 0, 0, 0, 0, 0, 0, width, height);
+        (*pScreen->GetImage) (pPicture->pDrawable,
+                              0, 0, width, height, ZPixmap,
+                              0xffffffff, (void *) argbbits);
+        FreePicture(pPicture, 0);
     }
     /*
-     * Check whether the cursor can be directly supported by 
+     * Check whether the cursor can be directly supported by
      * the core cursor code
      */
     ncolor = 0;
     argb = argbbits;
-    for (y = 0; ncolor <= 2 && y < height; y++)
-    {
-	for (x = 0; ncolor <= 2 && x < width; x++)
-	{
-	    CARD32  p = *argb++;
-	    CARD32  a = (p >> 24);
+    for (y = 0; ncolor <= 2 && y < height; y++) {
+        for (x = 0; ncolor <= 2 && x < width; x++) {
+            CARD32 p = *argb++;
+            CARD32 a = (p >> 24);
 
-	    if (a == 0)	    /* transparent */
-		continue;
-	    if (a == 0xff)  /* opaque */
-	    {
-		int n;
-		for (n = 0; n < ncolor; n++)
-		    if (p == twocolor[n])
-			break;
-		if (n == ncolor)
-		    twocolor[ncolor++] = p;
-	    }
-	    else
-		ncolor = 3;
-	}
+            if (a == 0)         /* transparent */
+                continue;
+            if (a == 0xff) {    /* opaque */
+                int n;
+
+                for (n = 0; n < ncolor; n++)
+                    if (p == twocolor[n])
+                        break;
+                if (n == ncolor)
+                    twocolor[ncolor++] = p;
+            }
+            else
+                ncolor = 3;
+        }
     }
-    
+
     /*
      * Convert argb image to two plane cursor
      */
     srcline = srcbits;
     mskline = mskbits;
     argb = argbbits;
-    for (y = 0; y < height; y++)
-    {
-	for (x = 0; x < width; x++)
-	{
-	    CARD32  p = *argb++;
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            CARD32 p = *argb++;
 
-	    if (ncolor <= 2)
-	    {
-		CARD32	a = ((p >> 24));
+            if (ncolor <= 2) {
+                CARD32 a = ((p >> 24));
 
-		SetBit (mskline, x, a != 0);
-		SetBit (srcline, x, a != 0 && p == twocolor[0]);
-	    }
-	    else
-	    {
-		CARD32	a = ((p >> 24) * DITHER_SIZE + 127) / 255;
-		CARD32	i = ((CvtR8G8B8toY15(p) >> 7) * DITHER_SIZE + 127) / 255;
-		CARD32	d = orderedDither[y&(DITHER_DIM-1)][x&(DITHER_DIM-1)];
-		/* Set mask from dithered alpha value */
-		SetBit(mskline, x, a > d);
-		/* Set src from dithered intensity value */
-		SetBit(srcline, x, a > d && i <= d);
-	    }
-	}
-	srcline += stride;
-	mskline += stride;
+                RenderSetBit(mskline, x, a != 0);
+                RenderSetBit(srcline, x, a != 0 && p == twocolor[0]);
+            }
+            else {
+                CARD32 a = ((p >> 24) * DITHER_SIZE + 127) / 255;
+                CARD32 i = ((CvtR8G8B8toY15(p) >> 7) * DITHER_SIZE + 127) / 255;
+                CARD32 d =
+                    orderedDither[y & (DITHER_DIM - 1)][x & (DITHER_DIM - 1)];
+                /* Set mask from dithered alpha value */
+                RenderSetBit(mskline, x, a > d);
+                /* Set src from dithered intensity value */
+                RenderSetBit(srcline, x, a > d && i <= d);
+            }
+        }
+        srcline += stride;
+        mskline += stride;
     }
     /*
      * Dither to white and black if the cursor has more than two colors
      */
-    if (ncolor > 2)
-    {
-	twocolor[0] = 0xff000000;
-	twocolor[1] = 0xffffffff;
+    if (ncolor > 2) {
+        twocolor[0] = 0xff000000;
+        twocolor[1] = 0xffffffff;
     }
-    else
-    {
-	free (argbbits);
-	argbbits = 0;
+    else {
+        free(argbbits);
+        argbbits = 0;
     }
-    
+
 #define GetByte(p,s)	(((p) >> (s)) & 0xff)
 #define GetColor(p,s)	(GetByte(p,s) | (GetByte(p,s) << 8))
-    
+
     cm.width = width;
     cm.height = height;
     cm.xhot = stuff->x;
@@ -1388,13 +1539,22 @@ ProcRenderCreateCursor (ClientPtr client)
 
     pScreen -> RealizeCursor = nxagentCursorSaveRenderInfo;
 
-    pCursor = AllocCursorARGB (srcbits, mskbits, argbbits, &cm,
-			       GetColor(twocolor[0], 16),
-			       GetColor(twocolor[0], 8),
-			       GetColor(twocolor[0], 0),
-			       GetColor(twocolor[1], 16),
-			       GetColor(twocolor[1], 8),
-			       GetColor(twocolor[1], 0));
+#ifdef NEED_NEWER_XORG_VERSION
+    rc      = AllocARGBCursor(
+#else
+    pCursor = AllocCursorARGB(
+#endif
+                              srcbits, mskbits, argbbits, &cm,
+                              GetColor(twocolor[0], 16),
+                              GetColor(twocolor[0], 8),
+                              GetColor(twocolor[0], 0),
+                              GetColor(twocolor[1], 16),
+                              GetColor(twocolor[1], 8),
+                              GetColor(twocolor[1], 0)
+#ifdef NEED_NEWER_XORG_VERSION
+                              , &pCursor, client, stuff->cid
+#endif
+              );
 
     pScreen -> RealizeCursor = saveRealizeCursor;
 
@@ -1406,57 +1566,92 @@ ProcRenderCreateCursor (ClientPtr client)
      * picture info.
      */
 
+#ifdef NEED_NEWER_XORG_VERSION
+    if (rc != Success)
+        goto bail;
+#else
     if (pCursor == NULL)
     {
       return BadAlloc;
     }
+#endif
 
     nxagentCursorPostSaveRenderInfo(pCursor, pScreen, pSrc, stuff -> x, stuff -> y);
 
     nxagentRenderRealizeCursor(pScreen, pCursor);
 
+#ifdef NEED_NEWER_XORG_VERSION
+    if (!AddResource(stuff->cid, RT_CURSOR, (void *) pCursor)) {
+        rc = BadAlloc;
+        goto bail;
+    }
+ bail:
+    free(srcbits);
+    free(mskbits);
+    return rc;
+#else
     if (AddResource(stuff->cid, RT_CURSOR, (void *)pCursor))
 	return (client->noClientException);
+
+    /*
+     * We do not leak memory from srcbits or mskbits here,
+     * as the old AllocCursorARGB function frees them in case
+     * of failure. The newer AllocARGBCursor function doesn't.
+     *
+     * This said, it looks like both the old and new code
+     * leak the argbbits structure in case of an error?
+     */
     return BadAlloc;
+#endif
 }
 
 static int
-ProcRenderSetPictureTransform (ClientPtr client)
+ProcRenderSetPictureTransform(ClientPtr client)
 {
     REQUEST(xRenderSetPictureTransformReq);
-    PicturePtr	pPicture;
-    int		result;
+    PicturePtr pPicture;
+    int result;
 
     REQUEST_SIZE_MATCH(xRenderSetPictureTransformReq);
-    VERIFY_PICTURE (pPicture, stuff->picture, client, DixWriteAccess,
-		    RenderErrBase + BadPicture);
-    result = SetPictureTransform (pPicture, (PictTransform *) &stuff->transform);
+#ifdef NEED_NEWER_XORG_VERSION
+    VERIFY_PICTURE(pPicture, stuff->picture, client, DixSetAttrAccess);
+#else
+    VERIFY_PICTURE(pPicture, stuff->picture, client, DixWriteAccess,
+                   RenderErrBase + BadPicture);
+#endif
+    result = SetPictureTransform(pPicture, (PictTransform *) &stuff->transform);
 
     nxagentSetPictureTransform(pPicture, &stuff->transform);
     
+#ifndef NEED_NEWER_XORG_VERSION
     if (client->noClientException != Success)
-        return(client->noClientException);
+        return (client->noClientException);
     else
-        return(result);
+#endif
+        return (result);
 }
 
 static int
-ProcRenderSetPictureFilter (ClientPtr client)
+ProcRenderSetPictureFilter(ClientPtr client)
 {
-    REQUEST (xRenderSetPictureFilterReq);
-    PicturePtr	pPicture;
-    int		result;
-    xFixed	*params;
-    int		nparams;
-    char	*name;
-    
-    REQUEST_AT_LEAST_SIZE (xRenderSetPictureFilterReq);
-    VERIFY_PICTURE (pPicture, stuff->picture, client, DixWriteAccess,
-		    RenderErrBase + BadPicture);
+    REQUEST(xRenderSetPictureFilterReq);
+    PicturePtr pPicture;
+    int result;
+    xFixed *params;
+    int nparams;
+    char *name;
+
+    REQUEST_AT_LEAST_SIZE(xRenderSetPictureFilterReq);
+#ifdef NEED_NEWER_XORG_VERSION
+    VERIFY_PICTURE(pPicture, stuff->picture, client, DixSetAttrAccess);
+#else
+    VERIFY_PICTURE(pPicture, stuff->picture, client, DixWriteAccess,
+                   RenderErrBase + BadPicture);
+#endif
     name = (char *) (stuff + 1);
-    params = (xFixed *) (name + ((stuff->nbytes + 3) & ~3));
+    params = (xFixed *) (name + pad_to_int32(stuff->nbytes));
     nparams = ((xFixed *) stuff + client->req_len) - params;
-    result = SetPictureFilter (pPicture, name, stuff->nbytes, params, nparams);
+    result = SetPictureFilter(pPicture, name, stuff->nbytes, params, nparams);
 
     nxagentSetPictureFilter(pPicture, name, stuff->nbytes, params, nparams);
 
@@ -1464,44 +1659,55 @@ ProcRenderSetPictureFilter (ClientPtr client)
 }
 
 static int
-ProcRenderCreateAnimCursor (ClientPtr client)
+ProcRenderCreateAnimCursor(ClientPtr client)
 {
     REQUEST(xRenderCreateAnimCursorReq);
-    CursorPtr	    *cursors;
-    CARD32	    *deltas;
-    CursorPtr	    pCursor;
-    int		    ncursor;
-    xAnimCursorElt  *elt;
-    int		    i;
-    int		    ret;
+    CursorPtr *cursors;
+    CARD32 *deltas;
+    CursorPtr pCursor;
+    int ncursor;
+    xAnimCursorElt *elt;
+    int i;
+    int ret;
 
     REQUEST_AT_LEAST_SIZE(xRenderCreateAnimCursorReq);
     LEGAL_NEW_RESOURCE(stuff->cid, client);
     if (client->req_len & 1)
-	return BadLength;
-    ncursor = (client->req_len - (SIZEOF(xRenderCreateAnimCursorReq) >> 2)) >> 1;
-    cursors = malloc (ncursor * (sizeof (CursorPtr) + sizeof (CARD32)));
+        return BadLength;
+    ncursor =
+        (client->req_len -
+         (bytes_to_int32(sizeof(xRenderCreateAnimCursorReq)))) >> 1;
+    cursors = xallocarray(ncursor, sizeof(CursorPtr) + sizeof(CARD32));
     if (!cursors)
-	return BadAlloc;
+        return BadAlloc;
     deltas = (CARD32 *) (cursors + ncursor);
     elt = (xAnimCursorElt *) (stuff + 1);
-    for (i = 0; i < ncursor; i++)
-    {
-	cursors[i] = (CursorPtr)SecurityLookupIDByType(client, elt->cursor,
-						       RT_CURSOR, DixReadAccess);
-	if (!cursors[i])
-	{
-	    free (cursors);
-	    client->errorValue = elt->cursor;
-	    return BadCursor;
-	}
-	deltas[i] = elt->delay;
-	elt++;
+    for (i = 0; i < ncursor; i++) {
+#ifdef NEED_NEWER_XORG_VERSION
+        ret = dixLookupResourceByType((void **) (cursors + i), elt->cursor,
+                                      RT_CURSOR, client, DixReadAccess);
+        if (ret != Success) {
+            free(cursors);
+            return ret;
+        }
+#else
+        cursors[i] = (CursorPtr) SecurityLookupIDByType(client, elt->cursor,
+                                                        RT_CURSOR,
+                                                        DixReadAccess);
+        if (!cursors[i]) {
+            free(cursors);
+            client->errorValue = elt->cursor;
+            return BadCursor;
+        }
+#endif
+        deltas[i] = elt->delay;
+        elt++;
     }
-    ret = AnimCursorCreate (cursors, deltas, ncursor, &pCursor);
-    free (cursors);
+    ret = AnimCursorCreate(cursors, deltas, ncursor, &pCursor, client,
+                           stuff->cid);
+    free(cursors);
     if (ret != Success)
-	return ret;
+        return ret;
 
     nxagentAnimCursorBits = pCursor -> bits;
 
@@ -1510,15 +1716,23 @@ ProcRenderCreateAnimCursor (ClientPtr client)
       pCursor -> devPriv[i] = NULL;
     }
 
-    if (AddResource (stuff->cid, RT_CURSOR, (void *)pCursor))
-	return client->noClientException;
+    if (AddResource(stuff->cid, RT_CURSOR, (void *) pCursor))
+        return
+#ifdef NEED_NEWER_XORG_VERSION
+               Success
+#else
+               client->noClientException
+#endif
+                                        ;
     return BadAlloc;
 }
 
-static int ProcRenderCreateSolidFill(ClientPtr client)
+static int
+ProcRenderCreateSolidFill(ClientPtr client)
 {
-    PicturePtr	    pPicture;
-    int		    error = 0;
+    PicturePtr pPicture;
+    int error = 0;
+
     REQUEST(xRenderCreateSolidFillReq);
 
     REQUEST_AT_LEAST_SIZE(xRenderCreateSolidFillReq);
@@ -1527,24 +1741,32 @@ static int ProcRenderCreateSolidFill(ClientPtr client)
 
     pPicture = CreateSolidPicture(stuff->pid, &stuff->color, &error);
     if (!pPicture)
-	return error;
-    /* AGENT SERVER */
+        return error;
+
+#ifdef NEED_NEWER_XORG_VERSION
+    /* security creation/labeling check */
+    error = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pid, PictureType,
+                     pPicture, RT_NONE, NULL, DixCreateAccess);
+    if (error != Success)
+        return error;
+#endif
 
     nxagentRenderCreateSolidFill(pPicture, &stuff -> color);
 
-    /* AGENT SERVER */
-    if (!AddResource (stuff->pid, PictureType, (void *)pPicture))
-	return BadAlloc;
+    if (!AddResource(stuff->pid, PictureType, (void *) pPicture))
+        return BadAlloc;
     return Success;
 }
 
-static int ProcRenderCreateLinearGradient (ClientPtr client)
+static int
+ProcRenderCreateLinearGradient(ClientPtr client)
 {
-    PicturePtr	    pPicture;
-    int		    len;
-    int		    error = 0;
-    xFixed          *stops;
-    xRenderColor   *colors;
+    PicturePtr pPicture;
+    int len;
+    int error = 0;
+    xFixed *stops;
+    xRenderColor *colors;
+
     REQUEST(xRenderCreateLinearGradientReq);
 
     REQUEST_AT_LEAST_SIZE(xRenderCreateLinearGradientReq);
@@ -1552,36 +1774,44 @@ static int ProcRenderCreateLinearGradient (ClientPtr client)
     LEGAL_NEW_RESOURCE(stuff->pid, client);
 
     len = (client->req_len << 2) - sizeof(xRenderCreateLinearGradientReq);
-    if (stuff->nStops > UINT32_MAX/(sizeof(xFixed) + sizeof(xRenderColor)))
-	return BadLength;
-    if (len != stuff->nStops*(sizeof(xFixed) + sizeof(xRenderColor)))
+    if (stuff->nStops > UINT32_MAX / (sizeof(xFixed) + sizeof(xRenderColor)))
+        return BadLength;
+    if (len != stuff->nStops * (sizeof(xFixed) + sizeof(xRenderColor)))
         return BadLength;
 
-    stops = (xFixed *)(stuff + 1);
-    colors = (xRenderColor *)(stops + stuff->nStops);
+    stops = (xFixed *) (stuff + 1);
+    colors = (xRenderColor *) (stops + stuff->nStops);
 
-    pPicture = CreateLinearGradientPicture (stuff->pid, &stuff->p1, &stuff->p2,
-                                            stuff->nStops, stops, colors, &error);
+    pPicture = CreateLinearGradientPicture(stuff->pid, &stuff->p1, &stuff->p2,
+                                           stuff->nStops, stops, colors,
+                                           &error);
     if (!pPicture)
-	return error;
-    /* AGENT SERVER */
+        return error;
+#ifdef NEED_NEWER_XORG_VERSION
+    /* security creation/labeling check */
+    error = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pid, PictureType,
+                     pPicture, RT_NONE, NULL, DixCreateAccess);
+    if (error != Success)
+        return error;
+#endif
 
     nxagentRenderCreateLinearGradient(pPicture, &stuff->p1, &stuff->p2,
                                           stuff->nStops, stops, colors);
 
-    /* AGENT SERVER */
-    if (!AddResource (stuff->pid, PictureType, (void *)pPicture))
-	return BadAlloc;
+    if (!AddResource(stuff->pid, PictureType, (void *) pPicture))
+        return BadAlloc;
     return Success;
 }
 
-static int ProcRenderCreateRadialGradient (ClientPtr client)
+static int
+ProcRenderCreateRadialGradient(ClientPtr client)
 {
-    PicturePtr	    pPicture;
-    int		    len;
-    int		    error = 0;
-    xFixed          *stops;
-    xRenderColor   *colors;
+    PicturePtr pPicture;
+    int len;
+    int error = 0;
+    xFixed *stops;
+    xRenderColor *colors;
+
     REQUEST(xRenderCreateRadialGradientReq);
 
     REQUEST_AT_LEAST_SIZE(xRenderCreateRadialGradientReq);
@@ -1589,37 +1819,45 @@ static int ProcRenderCreateRadialGradient (ClientPtr client)
     LEGAL_NEW_RESOURCE(stuff->pid, client);
 
     len = (client->req_len << 2) - sizeof(xRenderCreateRadialGradientReq);
-    if (len != stuff->nStops*(sizeof(xFixed) + sizeof(xRenderColor)))
+    if (len != stuff->nStops * (sizeof(xFixed) + sizeof(xRenderColor)))
         return BadLength;
 
-    stops = (xFixed *)(stuff + 1);
-    colors = (xRenderColor *)(stops + stuff->nStops);
+    stops = (xFixed *) (stuff + 1);
+    colors = (xRenderColor *) (stops + stuff->nStops);
 
-    pPicture = CreateRadialGradientPicture (stuff->pid, &stuff->inner, &stuff->outer,
-                                            stuff->inner_radius, stuff->outer_radius,
-                                            stuff->nStops, stops, colors, &error);
+    pPicture =
+        CreateRadialGradientPicture(stuff->pid, &stuff->inner, &stuff->outer,
+                                    stuff->inner_radius, stuff->outer_radius,
+                                    stuff->nStops, stops, colors, &error);
     if (!pPicture)
-	return error;
-    /* AGENT SERVER */
+        return error;
+#ifdef NEED_NEWER_XORG_VERSION
+    /* security creation/labeling check */
+    error = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pid, PictureType,
+                     pPicture, RT_NONE, NULL, DixCreateAccess);
+    if (error != Success)
+        return error;
+#endif
 
     nxagentRenderCreateRadialGradient(pPicture, &stuff->inner, &stuff->outer,
                                           stuff->inner_radius,
                                               stuff->outer_radius, 
                                                   stuff->nStops, stops, colors);
 
-    /* AGENT SERVER */
-    if (!AddResource (stuff->pid, PictureType, (void *)pPicture))
-	return BadAlloc;
+    if (!AddResource(stuff->pid, PictureType, (void *) pPicture))
+        return BadAlloc;
     return Success;
 }
 
-static int ProcRenderCreateConicalGradient (ClientPtr client)
+static int
+ProcRenderCreateConicalGradient(ClientPtr client)
 {
-    PicturePtr	    pPicture;
-    int		    len;
-    int		    error = 0;
-    xFixed          *stops;
-    xRenderColor   *colors;
+    PicturePtr pPicture;
+    int len;
+    int error = 0;
+    xFixed *stops;
+    xRenderColor *colors;
+
     REQUEST(xRenderCreateConicalGradientReq);
 
     REQUEST_AT_LEAST_SIZE(xRenderCreateConicalGradientReq);
@@ -1627,31 +1865,36 @@ static int ProcRenderCreateConicalGradient (ClientPtr client)
     LEGAL_NEW_RESOURCE(stuff->pid, client);
 
     len = (client->req_len << 2) - sizeof(xRenderCreateConicalGradientReq);
-    if (len != stuff->nStops*(sizeof(xFixed) + sizeof(xRenderColor)))
+    if (len != stuff->nStops * (sizeof(xFixed) + sizeof(xRenderColor)))
         return BadLength;
 
-    stops = (xFixed *)(stuff + 1);
-    colors = (xRenderColor *)(stops + stuff->nStops);
+    stops = (xFixed *) (stuff + 1);
+    colors = (xRenderColor *) (stops + stuff->nStops);
 
-    pPicture = CreateConicalGradientPicture (stuff->pid, &stuff->center, stuff->angle,
-                                             stuff->nStops, stops, colors, &error);
+    pPicture =
+        CreateConicalGradientPicture(stuff->pid, &stuff->center, stuff->angle,
+                                     stuff->nStops, stops, colors, &error);
     if (!pPicture)
-	return error;
-    /* AGENT SERVER */
+        return error;
+#ifdef NEED_NEWER_XORG_VERSION
+    /* security creation/labeling check */
+    error = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pid, PictureType,
+                     pPicture, RT_NONE, NULL, DixCreateAccess);
+    if (error != Success)
+        return error;
+#endif
 
     nxagentRenderCreateConicalGradient(pPicture, &stuff->center,
                                            stuff->angle, stuff->nStops, stops,
                                                colors);
 
-    /* AGENT SERVER */
-    if (!AddResource (stuff->pid, PictureType, (void *)pPicture))
-	return BadAlloc;
+    if (!AddResource(stuff->pid, PictureType, (void *) pPicture))
+        return BadAlloc;
     return Success;
 }
 
-
 static int
-ProcRenderDispatch (ClientPtr client)
+ProcRenderDispatch(ClientPtr client)
 {
     int result;
 
@@ -1689,11 +1932,11 @@ ProcRenderDispatch (ClientPtr client)
         return result;
     }
     else
-	return BadRequest;
+        return BadRequest;
 }
 
 static int
-SProcRenderDispatch (ClientPtr client)
+SProcRenderDispatch(ClientPtr client)
 {
     int result;
 
@@ -1726,5 +1969,5 @@ SProcRenderDispatch (ClientPtr client)
         return result;
     }
     else
-	return BadRequest;
+        return BadRequest;
 }

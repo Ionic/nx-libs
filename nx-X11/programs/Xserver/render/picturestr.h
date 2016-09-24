@@ -391,6 +391,14 @@ extern RESTYPE GlyphSetType;
 #define SetPictureWindow(w,p) ((w)->devPrivates[PictureWindowPrivateIndex].ptr = (void *) (p))
 #endif
 
+#ifdef NEED_NEWER_XORG_VERSION
+#define VERIFY_PICTURE(pPicture, pid, client, mode) {\
+    int tmprc = dixLookupResourceByType((void *)&(pPicture), pid,\
+	                                PictureType, client, mode);\
+    if (tmprc != Success)\
+	return tmprc;\
+}
+#else
 #define VERIFY_PICTURE(pPicture, pid, client, mode, err) {\
     pPicture = SecurityLookupIDByType(client, pid, PictureType, mode);\
     if (!pPicture) { \
@@ -398,14 +406,25 @@ extern RESTYPE GlyphSetType;
 	return err; \
     } \
 }
+#endif
 
+#ifdef NEED_NEWER_XORG_VERSION
+#define VERIFY_ALPHA(pPicture, pid, client, mode) {\
+    if (pid == None) \
+	pPicture = 0; \
+    else { \
+	VERIFY_PICTURE(pPicture, pid, client, mode); \
+    } \
+}
+#else
 #define VERIFY_ALPHA(pPicture, pid, client, mode, err) {\
     if (pid == None) \
 	pPicture = 0; \
     else { \
 	VERIFY_PICTURE(pPicture, pid, client, mode, err); \
     } \
-} \
+}
+#endif
 
 #ifndef NEED_NEWER_XORG_VERSION
 void

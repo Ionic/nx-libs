@@ -175,7 +175,9 @@ extern int PictureCmapPolicy;
 extern int PictureParseCmapPolicy(const char *name);
 
 extern int RenderErrBase;
+#ifndef NEED_NEWER_XORG_VERSION
 extern int RenderClientPrivateIndex;
+#endif
 
 /* Fixed point updates from Carl Worth, USC, Information Sciences Institute */
 

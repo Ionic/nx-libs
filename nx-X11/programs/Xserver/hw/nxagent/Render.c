@@ -206,7 +206,7 @@ void
 nxagentCleanGlyphs(xGlyphInfo  *gi,
                    int         nglyphs,
                    CARD8       *images,
-                   int         depth,
+                   int         fdepth,
                    Display     *dpy)
 {
   int widthInBits;
@@ -220,12 +220,14 @@ nxagentCleanGlyphs(xGlyphInfo  *gi,
 
   #ifdef DEBUG
   fprintf(stderr, "nxagentCleanGlyphs: Found a Glyph with Depth %d, width %d, pad %d.\n",
-          depth, gi -> width, BitmapPad(dpy));
+          fdepth, gi -> width, BitmapPad(dpy));
   #endif
 
   while (nglyphs > 0)
   {
-    if (depth == 24)
+    /* Currently unused. */
+#if 0
+    if (fdepth == 24)
     {
       widthInBits = gi -> width * 32;
 
@@ -255,7 +257,7 @@ nxagentCleanGlyphs(xGlyphInfo  *gi,
       }
 
       #ifdef DUMP
-      fprintf(stderr, "nxagentCleanGlyphs: depth %d, bytesToClean %d, scanline: ", depth, bytesToClean);
+      fprintf(stderr, "nxagentCleanGlyphs: fdepth %d, bytesToClean %d, scanline: ", fdepth, bytesToClean);
       for (i = 0; i < bytesPerLine; i++)
       {
         fprintf(stderr, "[%d]", images[i]);
@@ -269,7 +271,9 @@ nxagentCleanGlyphs(xGlyphInfo  *gi,
 
       nglyphs--;
     }
-    else if (depth == 1)
+    else
+#endif
+    if (fdepth == 0)
     {
       widthInBits = gi -> width;
 
@@ -342,7 +346,7 @@ nxagentCleanGlyphs(xGlyphInfo  *gi,
       }
 
       #ifdef DUMP
-      fprintf(stderr, "nxagentCleanGlyphs: depth %d, bytesToClean %d, scanline: ", depth, bytesToClean);
+      fprintf(stderr, "nxagentCleanGlyphs: fdepth %d, bytesToClean %d, scanline: ", fdepth, bytesToClean);
       for (i = 0; i < bytesPerLine; i++)
       {
         fprintf(stderr, "[%d]", images[i]);
@@ -356,9 +360,9 @@ nxagentCleanGlyphs(xGlyphInfo  *gi,
 
       nglyphs--;
     }
-    else if ((depth == 8) || (depth == 16) )
+    else if ((fdepth == 2) || (fdepth == 3) )
     {
-      widthInBits = gi -> width * depth;
+      widthInBits = gi -> width * ((fdepth - 1) * 8);
 
       bytesPerLine = ROUNDUP(widthInBits, BitmapPad(dpy));
 
@@ -393,7 +397,7 @@ nxagentCleanGlyphs(xGlyphInfo  *gi,
           }
 
           #ifdef DUMP
-          fprintf(stderr, "nxagentCleanGlyphs: depth %d, bytesToClean %d, scanline: ", depth, bytesToClean);
+          fprintf(stderr, "nxagentCleanGlyphs: fdepth %d, bytesToClean %d, scanline: ", fdepth, bytesToClean);
           for (i = 0; i < bytesPerLine; i++)
           {
             fprintf(stderr, "[%d]", images[i]);
@@ -415,7 +419,7 @@ nxagentCleanGlyphs(xGlyphInfo  *gi,
       fprintf(stderr, "nxagentCleanGlyphs: Breaking Out.\n");
       #endif
     }
-    else if (depth == 32)
+    else if (fdepth == 4)
     {
       #ifdef DEBUG
       fprintf(stderr, "nxagentCleanGlyphs: Found glyph with depth 32.\n");
@@ -428,8 +432,8 @@ nxagentCleanGlyphs(xGlyphInfo  *gi,
     else
     {
       #ifdef WARNING
-      fprintf(stderr, "nxagentCleanGlyphs: Unrecognized glyph, depth is not 8/16/24/32, it appears to be %d.\n",
-              depth);
+      fprintf(stderr, "nxagentCleanGlyphs: Unrecognized glyph, fdepth is not in range [0..%d], it appears to be %d.\n",
+              GlyphFormatNum, fdepth);
       #endif
 
       gi++;
@@ -2498,7 +2502,7 @@ void nxagentAddGlyphs(GlyphSetPtr glyphSet, Glyph *gids, xGlyphInfo *gi,
   }
 
   #ifdef NXAGENT_RENDER_CLEANUP
-  nxagentCleanGlyphs(gi, nglyphs, normalizedImages, glyphDepths[glyphSet -> fdepth], nxagentDisplay);
+  nxagentCleanGlyphs(gi, nglyphs, normalizedImages, glyphSet -> fdepth, nxagentDisplay);
   #endif /* NXAGENT_RENDER_CLEANUP */
 
   XRenderAddGlyphs(nxagentDisplay,
