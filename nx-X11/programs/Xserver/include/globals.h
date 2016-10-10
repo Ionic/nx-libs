@@ -88,10 +88,6 @@ extern Bool noRRExtension;
 extern Bool noRRXineramaExtension;
 #endif
 
-#ifdef RENDER
-extern Bool noRenderExtension;
-#endif
-
 #ifdef SHAPE
 extern Bool noShapeExtension;
 #endif

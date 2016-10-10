@@ -64,6 +64,7 @@ SOFTWARE.
 
 #include "misc.h"
 #include "extension.h"
+#include "extinit.h"
 #include "micmap.h"
 
 extern Bool noTestExtensions;
@@ -97,9 +98,6 @@ extern Bool noMITShmExtension;
 #endif
 #ifdef RANDR
 extern Bool noRRExtension;
-#endif
-#ifdef RENDER
-extern Bool noRenderExtension;
 #endif
 #ifdef SHAPE
 extern Bool noShapeExtension;
@@ -240,9 +238,6 @@ extern void DPMSExtensionInit(void);
 #endif
 #ifdef DPSEXT
 extern void DPSExtensionInit(void);
-#endif
-#ifdef RENDER
-extern void RenderExtensionInit(void);
 #endif
 #ifdef RANDR
 extern void RRExtensionInit(void);
