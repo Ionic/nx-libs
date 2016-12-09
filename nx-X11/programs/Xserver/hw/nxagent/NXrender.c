@@ -278,6 +278,15 @@ ProcRenderQueryPictFormats(ClientPtr client)
                     pictForm->colormap = pFormat->index.pColormap->mid;
                 else
                     pictForm->colormap = None;
+                #ifdef DEBUG
+                fprintf(stderr, "ProcRenderQueryPictFormats: Added format type [%d] depth [%d] rgb [%d,%d,%d] "
+                            "mask rgb [%d,%d,%d] alpha [%d] alpha mask [%d].\n",
+                                pictForm->type, pictForm->depth, pictForm->direct.red,
+                                    pictForm->direct.green, pictForm->direct.blue,
+                                        pictForm->direct.redMask, pictForm->direct.greenMask,
+                                            pictForm->direct.blueMask, pictForm->direct.alpha,
+                                                pictForm->direct.alphaMask);
+                #endif
                 if (client->swapped) {
                     swapl(&pictForm->id);
                     swaps(&pictForm->direct.red);

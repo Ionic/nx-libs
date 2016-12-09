@@ -798,6 +798,15 @@ XRenderPictFormat *nxagentMatchingFormats(PictFormatPtr pFormat)
 
   for (i = 0; i < nxagentNumFormats; i++)
   {
+    #ifdef DEBUG
+    fprintf (stderr, "nxagentMatchingFormats: checking against format type [%d] depth [%d] rgb [%d,%d,%d] "
+                            "mask rgb [%d,%d,%d] alpha [%d] alpha mask [%d].\n",
+                                nxagentArrayFormats[i].type, nxagentArrayFormats[i].depth, nxagentArrayFormats[i].direct.red,
+                                    nxagentArrayFormats[i].direct.green, nxagentArrayFormats[i].direct.blue,
+                                        nxagentArrayFormats[i].direct.redMask, nxagentArrayFormats[i].direct.greenMask,
+                                            nxagentArrayFormats[i].direct.blueMask, nxagentArrayFormats[i].direct.alpha,
+                                                nxagentArrayFormats[i].direct.alphaMask);
+    #endif
     if (pFormat -> type == nxagentArrayFormats[i].type &&
         pFormat -> depth == nxagentArrayFormats[i].depth &&
         pFormat -> direct.red == nxagentArrayFormats[i].direct.red &&
