@@ -581,6 +581,7 @@ AllocateGC(ScreenPtr pScreen)
     pGC = (GCPtr)malloc(pScreen->totalGCSize);
     if (pGC)
     {
+	bzero(pGC, pScreen->totalGCSize);
 	ppriv = (DevUnion *)(pGC + 1);
 	pGC->devPrivates = ppriv;
 	sizes = pScreen->GCPrivateSizes;
