@@ -285,7 +285,9 @@ miGlyphs(CARD8		op,
              * the clip mask update.
              */
 
-            pPicture->pDrawable->serialNumber = NEXT_SERIAL_NUMBER;
+            if (pPicture && pPicture->pDrawable) {
+                pPicture->pDrawable->serialNumber = NEXT_SERIAL_NUMBER;
+            }
             /* ----snip---- */
 
             if (pPicture) {
