@@ -34,6 +34,9 @@
 #include "mipict.h"
 #include "renderedge.h"
 #include "fbpict.h"
+#ifdef NEED_NEWER_XORG_VERSION
+#include "damage.h"
+#endif
 
 void
 fbAddTraps (PicturePtr	pPicture,
@@ -168,6 +171,114 @@ _Clockwise (xPointFixed *ref, xPointFixed *a, xPointFixed *b)
     bd.y = b->y - ref->y;
 
     return ((xFixed_32_32) bd.y * ad.x - (xFixed_32_32) ad.y * bd.x) < 0;
+}
+
+typedef void (*CompositeShapesFunc) (pixman_op_t op,
+                                     pixman_image_t * src,
+                                     pixman_image_t * dst,
+                                     pixman_format_code_t mask_format,
+                                     int x_src, int y_src,
+                                     int x_dst, int y_dst,
+                                     int n_shapes, const uint8_t * shapes);
+
+static void
+fbShapes(CompositeShapesFunc composite,
+         pixman_op_t op,
+         PicturePtr pSrc,
+         PicturePtr pDst,
+         PictFormatPtr maskFormat,
+         int16_t xSrc,
+         int16_t ySrc, int nshapes, int shape_size, const uint8_t * shapes)
+{
+    pixman_image_t *src, *dst;
+    int src_xoff, src_yoff;
+    int dst_xoff, dst_yoff;
+
+    miCompositeSourceValidate(pSrc);
+
+    src = image_from_pict(pSrc, FALSE, &src_xoff, &src_yoff);
+    dst = image_from_pict(pDst, TRUE, &dst_xoff, &dst_yoff);
+
+    if (src && dst) {
+        pixman_format_code_t format;
+
+#ifdef NEED_NEWER_XORG_VERSION
+        DamageRegionAppend(pDst->pDrawable, pDst->pCompositeClip);
+#endif
+
+        if (!maskFormat) {
+            int i;
+
+            if (pDst->polyEdge == PolyEdgeSharp)
+                format = PIXMAN_a1;
+            else
+                format = PIXMAN_a8;
+
+            for (i = 0; i < nshapes; ++i) {
+                composite(op, src, dst, format,
+                          xSrc + src_xoff,
+                          ySrc + src_yoff,
+                          dst_xoff, dst_yoff, 1, shapes + i * shape_size);
+            }
+        }
+        else {
+            switch (PICT_FORMAT_A(maskFormat->format)) {
+            case 1:
+                format = PIXMAN_a1;
+                break;
+
+            case 4:
+                format = PIXMAN_a4;
+                break;
+
+            default:
+            case 8:
+                format = PIXMAN_a8;
+                break;
+            }
+
+            composite(op, src, dst, format,
+                      xSrc + src_xoff,
+                      ySrc + src_yoff, dst_xoff, dst_yoff, nshapes, shapes);
+        }
+
+#ifdef NEED_NEWER_XORG_VERSION
+        DamageRegionProcessPending(pDst->pDrawable);
+#endif
+    }
+
+    free_pixman_pict(pSrc, src);
+    free_pixman_pict(pDst, dst);
+}
+
+void
+fbTrapezoids(CARD8 op,
+             PicturePtr pSrc,
+             PicturePtr pDst,
+             PictFormatPtr maskFormat,
+             INT16 xSrc, INT16 ySrc, int ntrap, xTrapezoid * traps)
+{
+    xSrc -= (traps[0].left.p1.x >> 16);
+    ySrc -= (traps[0].left.p1.y >> 16);
+
+    fbShapes((CompositeShapesFunc) pixman_composite_trapezoids,
+             op, pSrc, pDst, maskFormat,
+             xSrc, ySrc, ntrap, sizeof(xTrapezoid), (const uint8_t *) traps);
+}
+
+void
+fbTriangles(CARD8 op,
+            PicturePtr pSrc,
+            PicturePtr pDst,
+            PictFormatPtr maskFormat,
+            INT16 xSrc, INT16 ySrc, int ntris, xTriangle * tris)
+{
+    xSrc -= (tris[0].p1.x >> 16);
+    ySrc -= (tris[0].p1.y >> 16);
+
+    fbShapes((CompositeShapesFunc) pixman_composite_triangles,
+             op, pSrc, pDst, maskFormat,
+             xSrc, ySrc, ntris, sizeof(xTriangle), (const uint8_t *) tris);
 }
 
 /* FIXME -- this could be made more efficient */
