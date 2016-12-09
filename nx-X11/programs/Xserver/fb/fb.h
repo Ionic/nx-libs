@@ -586,6 +586,23 @@ extern const GCFuncs	fbGCFuncs;
 extern int	fbScreenPrivateIndex;
 extern int	fbGetScreenPrivateIndex(void);
 
+#ifdef FB_ACCESS_WRAPPER
+
+#define fbPrepareAccess(pDraw) \
+        fbGetScreenPrivate((pDraw)->pScreen)->setupWrap( \
+                &wfbReadMemory, \
+                &wfbWriteMemory, \
+                (pDraw))
+#define fbFinishAccess(pDraw) \
+        fbGetScreenPrivate((pDraw)->pScreen)->finishWrap(pDraw)
+
+#else
+
+#define fbPrepareAccess(pPix)
+#define fbFinishAccess(pDraw)
+
+#endif
+
 /* private field of a screen */
 typedef struct {
     unsigned char	win32bpp;	/* window bpp for 32-bpp images */
@@ -671,6 +688,25 @@ typedef struct {
     (pointer) = (FbBits *) _pPix->devPrivate.ptr; \
     (stride) = ((int) _pPix->devKind) / sizeof (FbBits); (void)(stride); \
     (bpp) = _pPix->drawable.bitsPerPixel;  (void)(bpp); \
+}
+
+#define fbGetDrawablePixmap(pDrawable, pixmap, xoff, yoff) {                    \
+    if ((pDrawable)->type != DRAWABLE_PIXMAP) {                                 \
+        (pixmap) = fbGetWindowPixmap(pDrawable);                                \
+        (xoff) = __fbPixOffXWin(pixmap);                                        \
+        (yoff) = __fbPixOffYWin(pixmap);                                        \
+    } else {                                                                    \
+        (pixmap) = (PixmapPtr) (pDrawable);                                     \
+        (xoff) = __fbPixOffXPix(pixmap);                                        \
+        (yoff) = __fbPixOffYPix(pixmap);                                        \
+    }                                                                           \
+    fbPrepareAccess(pDrawable);                                                 \
+}
+
+#define fbGetPixmapBitsData(pixmap, pointer, stride, bpp) {                     \
+    (pointer) = (FbBits *) (pixmap)->devPrivate.ptr;                            \
+    (stride) = ((int) (pixmap)->devKind) / sizeof (FbBits); (void)(stride);     \
+    (bpp) = (pixmap)->drawable.bitsPerPixel;  (void)(bpp);                      \
 }
 
 #define fbGetStipDrawable(pDrawable, pointer, stride, bpp, xoff, yoff) { \
@@ -2007,5 +2043,10 @@ fbFillRegionTiled (DrawablePtr	pDrawable,
 void
 fbPaintWindow(WindowPtr pWin, RegionPtr pRegion, int what);
 
+extern _X_EXPORT pixman_image_t *image_from_pict(PicturePtr pict,
+                                                 Bool has_clip,
+                                                 int *xoff, int *yoff);
+
+extern _X_EXPORT void free_pixman_pict(PicturePtr, pixman_image_t *);
 
 #endif /* _FB_H_ */
