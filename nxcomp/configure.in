@@ -46,7 +46,7 @@ fi
 dnl Reset default linking directives.
 
 LIBSTATIC=""
-LIBSHARED=""
+LIBSHARED="-lpthread"
 
 dnl Prefer headers and libraries from nx-X11, if present.
 

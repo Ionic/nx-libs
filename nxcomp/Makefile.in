@@ -236,7 +236,8 @@ CXXSRC = Loop.cpp 				\
 	 RenderCompositeGlyphs.cpp		\
 	 RenderFillRectangles.cpp		\
 	 RenderTrapezoids.cpp			\
-	 RenderTriangles.cpp
+	 RenderTriangles.cpp			\
+	 Log.cpp
 
 MOBJ   = $(MSRC:.c=.o)
 COBJ   = $(CSRC:.c=.o)
