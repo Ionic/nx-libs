@@ -250,6 +250,30 @@ else
   CFLAGS="$CFLAGS -DIN_ADDR_T=in_addr_t"
 fi
 
+dnl Check to see if std::put_time is available.
+dnl Could use a specific configure test.
+
+AC_DEFUN(nxconf_STDPUTTIME,
+[AC_CACHE_CHECK(for std::put_time, nxconf_cv_stdputtime,
+[AC_TRY_COMPILE([#include <iomanip>
+#include <ctime>],[std::time_t t = std::time(NULL); std::tm tm = *std::localtime(&t); (void) std::put_time(&tm, "%c");],
+nxconf_cv_stdputtime=yes, nxconf_cv_stdputtime=no)
+rm -f conftest*])
+STDPUTTIME=""
+test "${nxconf_cv_stdputtime}" = "yes" && STDPUTTIME="yes"])
+nxconf_STDPUTTIME
+
+dnl Pass std::puttime test result via *FLAGS.
+
+if test "${STDPUTTIME}" != "yes"; then
+  echo -e "using unformatted timestamp"
+  CXXFLAGS="$CXXFLAGS -UHAS_STD_PUTTIME"
+  CFLAGS="$CFLAGS -UHAS_STD_PUTTIME"
+else
+  CXXFLAGS="$CXXFLAGS -DHAS_STD_PUTTIME"
+  CFLAGS="$CFLAGS -DHAS_STD_PUTTIME"
+fi
+
 dnl Check whether --with-version was given.
 
 AC_SUBST(LIBVERSION)

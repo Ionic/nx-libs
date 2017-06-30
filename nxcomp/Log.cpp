@@ -78,7 +78,7 @@ std::string NXLog::stamp_to_string(const NXLogStamp& stamp) const
         }
         else
         {
-            #if __cplusplus >= 201103L && (!defined(__GNUC__) || __GNUC__ >= 5)
+            #if HAS_STD_PUTTIME
             oss << " " << std::put_time(&timeinfo, "%Y/%m/%d %H:%M:%S");
             #else
             oss << timestamp.tv_sec;
